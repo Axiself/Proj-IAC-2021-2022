@@ -77,7 +77,7 @@ MOV  [SELECIONA_CENARIO_FUNDO], R0 ; seleciona o cenário de fundo
 
 MOV R0, DISPLAYS
 MOV  R1, 0
-MOVB [R0], R1   ;reset display
+MOV [R0], R1   ;reset display
 
 MOV R0, Figure
 CALL write_something
@@ -263,7 +263,7 @@ change_counter:
     ADD   R0, R1
     MOV   [Counter], R0   ;new counter
     MOV   R1, DISPLAYS   
-    MOVB  [R1], R0       ;write on display
+    MOV  [R1], R0       ;write on display
     POP   R1
     POP   R0
     RET
