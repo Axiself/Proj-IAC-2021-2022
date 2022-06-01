@@ -1,15 +1,20 @@
 ;
 ; apaga uma figura em qualquer sitio e inicializa o rover
 ; prox: mexer 
-; editar word LINHA e COLUNA para mover for now (Linha vai ficar pq ele nao se mexe verticalmente)
 ;
 ;
 ;
 ;
+;
+
+; COUNTER E TECLADO
+
 DISPLAYS   EQU 0A000H  ; endereço dos displays de 7 segmentos (periférico POUT-1)
 TEC_LIN    EQU 0C000H  ; endereço das [Linha]s do teclado (periférico POUT-2)
 TEC_COL    EQU 0E000H  ; endereço das colunas do teclado (periférico PIN)
 MASCARA    EQU 0FH     ; para isolar os 4 bits de menor peso, ao ler as colunas do teclado
+
+; ECRA
 
 DEFINE_LINHA            EQU 600AH      ; endereço do comando para definir a linha
 DEFINE_COLUNA           EQU 600CH      ; endereço do comando para definir a coluna
@@ -17,13 +22,18 @@ DEFINE_PIXEL            EQU 6012H      ; endereço do comando para escrever um p
 APAGA_AVISO             EQU 6040H      ; endereço do comando para apagar o aviso de nenhum cenário selecionado
 APAGA_ECRÃ              EQU 6002H      ; endereço do comando para apagar todos os pixels já desenhados
 SELECIONA_CENARIO_FUNDO EQU 6042H      ; endereço do comando para selecionar uma imagem de fundo
+SELECIONA_MEDIA         EQU 6048H
+PLAY_MEDIA              EQU 605AH
 
-COR        EQU 0FF00H
-ALTURA     EQU 3
-LARGURA    EQU 3
+;FIGURAS 
 
-LINHA           EQU  15      ; linha do boneco (a meio do ecrã))
-COLUNA          EQU  5        ; coluna do boneco (a meio do ecrã)
+COR_F        EQU 0F00FH
+COR_M        EQU 0FF00H
+COR_E        EQU 0F0F0H
+ALTURA       EQU  3
+LARGURA      EQU  3
+LINHA        EQU  29      ; linha do boneco (a meio do ecrã)) (estatica)
+COLUNA       EQU  31        ; coluna do boneco (a meio do ecrã) (inicial)
 
 PLACE 1000H
 
@@ -37,11 +47,19 @@ Tecla: WORD 0
 Coluna: WORD 0
 Counter: WORD 0
 LinhaAux: WORD 0
+Meteor_exists: WORD 1
 
-Figure: WORD ALTURA, LARGURA, COLUNA
-        WORD COR, 0, COR
-        WORD 0, COR, 0
-        WORD COR, 0, COR
+Figure: WORD ALTURA, LARGURA, LINHA, COLUNA
+        WORD COR_F, 0, COR_F
+        WORD 0, COR_F, 0
+        WORD COR_F, 0, COR_F
+
+Meteor:  WORD 3, 3, 0, 31
+         WORD 0, COR_M, 0
+         WORD COR_M, 0, COR_M
+         WORD 0, COR_M, 0
+
+
 
 PLACE 0H ;---------------------------------------------------------------------------------------
 
@@ -53,6 +71,7 @@ MOV  [APAGA_AVISO], R1              ; apaga o aviso de nenhum cenário seleciona
 MOV  [APAGA_ECRÃ], R1               ; apaga todos os pixels já desenhados (o valor de R1 não é relevante)
 MOV  R0, 0                           ; cenário de fundo número 0
 MOV  [SELECIONA_CENARIO_FUNDO], R0 ; seleciona o cenário de fundo
+;MOV  [SELECIONA_MEDIA], R0
 
 
 
@@ -60,7 +79,11 @@ MOV R0, DISPLAYS
 MOV  R1, 0
 MOVB [R0], R1   ;reset display
 
-CALL ini_figure
+MOV R0, Figure
+CALL write_something
+MOV R0, Meteor
+CALL write_something    
+;MOV [PLAY_MEDIA], R0
 
 espera_tecla:          ; neste ciclo espera-se até uma tecla ser premida
 
@@ -119,38 +142,78 @@ coluna_converter:
     ADD R1, R0
     MOV [Tecla], R1     ; tecla = 4*linha + coluna
 
-move_left:
+
+
+
+move_left:                                ; 0
     CMP R1, 0
-;    JNZ move_right
-    MOV R1, -1
-;    CALL move_figure
-    MOV R4, [Figure]
-    MOV R1, LINHA
-    MOV R5, [Figure+2]
-    MOV R2, [Figure+4]
+    JNZ move_right
+
+    MOV R2, [Figure+6]    ;border check
+    CMP R2, 0
+    JZ next
+
+    MOV R1, [Figure+4]  ;linha
+    MOV R2, [Figure+6]  ;coluna
+    MOV R4, [Figure]    ;altura
+    MOV R5, [Figure+2]  ;largura
     CALL delete_something
+
+
+    MOV R0, [Figure+6]         ;menos coluna 
+    SUB R0, 1
+    MOV [Figure+6], R0
+    MOV R0, Figure
+    CALL write_something
     JMP next
 
-;move_right:
-;    CMP R1, 3
-;    JNZ sub_counter
-;    MOV R1, 1
-;    CALL move_figure
-;    JMP next
+move_right:                            ;3
+    CMP R1, 3
+    JNZ sub_counter
 
-sub_counter:
+    MOV R1, [Figure+6]    ;coluna
+    MOV R2, [Figure+2]    ;largura
+    ADD R1, R2
+    SUB R1, 1
+    MOV R2, 63
+    SUB R1, R2
+    JZ next               ; coluna + largura - maximo (63) - 1 = 0 -> end 
+
+    MOV R1, [Figure+4]  ;linha
+    MOV R2, [Figure+6]  ;coluna
+    MOV R4, [Figure]    ;altura
+    MOV R5, [Figure+2]  ;largura
+    CALL delete_something
+
+    MOV R0, [Figure+6]         ;mais coluna 
+    ADD R0, 1
+    MOV [Figure+6], R0
+    MOV R0, Figure
+    CALL write_something
+    JMP next
+
+sub_counter:                             ;4
     CMP R1, 4
     JNZ add_counter
     MOV R1, -1
     CALL change_counter
     JMP next
 
-add_counter:
+add_counter:                             ;7
     CMP R1, 7
-    JNZ next
+    JNZ move_met
     MOV R1, 1
     CALL change_counter
     JMP next
+
+move_met:
+    MOV R0, 8
+    CMP R1, R0
+    JNZ next
+    MOV R0, [Meteor_exists]
+    CMP R0, 0
+    JZ next
+    CALL move_meteor
 
 next:
 
@@ -206,13 +269,13 @@ change_counter:
     RET
 
 ; **********************************************************************
-; ini_figure 
-; Argumentos: none
+; write_something
+; Argumentos:   R0 - Endereco da tabela da figura
 ;               
 ;               
 ;
 ; **********************************************************************
-ini_figure:
+write_something:
     PUSH R0
     PUSH R1
     PUSH R2
@@ -220,35 +283,30 @@ ini_figure:
     PUSH R4
     PUSH R5
     PUSH R6
-    PUSH R7
-    MOV R0, Figure
+
+    MOV R1, [R0+4] ; Linha
+    MOV R2, [R0+6] ; Coluna
     MOV R4, [R0]   ; Altura
-    ADD R0, 2
-    MOV R6, [R0]   ; Largura
-    MOV R7, R6     ; Largura backup
-    ADD R0, 4
-    MOV R1, LINHA
-    MOV R2, COLUNA
-    MOV R3, [R0]
-
-ciclo1:
+    MOV R5, [R0+2] ; Largura
+    MOV R6, 8
+    ADD R6, R0
+    MOV R3, [R6] ; primeiro pixel
+prox_col2:
     CALL escreve_pixel
-    ADD R2, 1          ;proxima coluna
-    ADD R0, 2
-    MOV R3, [R0]       ;proxima cor
-    SUB R6, 1          ;menos uma coluna precisa
-    JZ last_coluna
-    JMP ciclo1
-
-last_coluna:
-    MOV R2, COLUNA
-    MOV R6, R7
+    ADD R2, 1
+    ADD R6, 2
+    MOV R3, [R6]
+    SUB R5, 1
+    JZ prox_lin2
+    JMP prox_col2
+prox_lin2:
+    MOV R5, [R0+2]
+    MOV R2, [R0+6]
     ADD R1, 1
     SUB R4, 1
-    JZ end
-    JMP ciclo1
-end:
-    POP R7
+    JZ end3
+    JMP prox_col2
+end3:
     POP R6
     POP R5
     POP R4
@@ -259,25 +317,57 @@ end:
     RET
 
 ; **********************************************************************
-; move_figure
-; Argumentos:   R0- direction (-1 = left, +1 = right)
-;               R
-;               R
+; move_meteor
+; Argumentos:   none
+;               
+;               
 ;
 ; **********************************************************************
-move_figure:
+move_meteor:
+    PUSH R0
+    PUSH R1
+    PUSH R2
+    PUSH R3
+    PUSH R4
+    PUSH R5
+    MOV R0, [Meteor+4]  ;linha
+    MOV R1, [Meteor]    ; altura
+    ADD R0, R1
+    SUB R0, 1
+    MOV R1, 28
+    SUB R0, R1
+    JZ reached_end
+normal:
+    MOV R1, [Meteor+4]
+    MOV R2, [Meteor+6]
+    MOV R4, [Meteor]
+    MOV R5, [Meteor+2]
+    CALL delete_something
 
-    MOV R0, Figure
-    MOV R4, [R0]   ; Altura
-    ADD R0, 2
-    MOV R6, [R0]   ; Largura
-    MOV R7, R6     ; Largura backup
-    ADD R0, 2
-    MOV R1, LINHA
-    MOV R2, [R0]   ; Coluna
-    ADD R0, 2
-    MOV R3, [R0]
+    MOV R0, [Meteor+4]
+    ADD R0, 1
+    MOV [Meteor+4], R0
+    MOV R0, Meteor
+    CALL write_something
+    JMP end4
 
+reached_end:
+    MOV R1, [Meteor+4]
+    MOV R2, [Meteor+6]
+    MOV R4, [Meteor]
+    MOV R5, [Meteor+2]
+    CALL delete_something
+    MOV R0, 0
+    MOV [Meteor_exists], R0
+
+end4:
+    POP R5
+    POP R4
+    POP R3
+    POP R2
+    POP R1
+    POP R0
+    RET
 
 ; **********************************************************************
 ; delete_something
@@ -289,6 +379,13 @@ move_figure:
 ; **********************************************************************
 
 delete_something: 
+    PUSH R1
+    PUSH R2
+    PUSH R3
+    PUSH R4
+    PUSH R5
+    PUSH R6
+    PUSH R7
     MOV R6, R2 ;coluna backup
     MOV R7, R5 ;largura backup
     MOV R3, 0
@@ -308,6 +405,13 @@ prox_lin:
     JMP prox_col
 
 end2:
+    POP R7
+    POP R6
+    POP R5
+    POP R4
+    POP R3
+    POP R2
+    POP R1
     RET
     
 ; **********************************************************************
@@ -322,4 +426,3 @@ escreve_pixel:
     MOV  [DEFINE_COLUNA], R2    ; seleciona a coluna
     MOV  [DEFINE_PIXEL], R3     ; altera a cor do pixel na linha e coluna já selecionadas
     RET
-
