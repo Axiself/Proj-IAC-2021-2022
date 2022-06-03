@@ -1,6 +1,6 @@
 ;
 ;   0 move para a esquerda 
-;   3 move para a direita
+;   2 move para a direita
 ;   4 diminui o display
 ;   7 aumenta o display
 ;   8 move o meteoro
@@ -174,11 +174,10 @@ move_left:                                ; tecla 0
     CALL write_something                ;escreve o rover na nova posicao
     JMP next
 
-move_right:                             ; tecla 3
-    CMP R1, 3
+move_right:                             ; tecla 2
+    CMP R1, 2
     JNZ sub_counter
 
-    MOV R1, 2
     MOV [Move_flag], R1                 ;ativa a flag para mover repetidamente
 
     MOV R1, [Figure+6]                  ;coluna
@@ -223,6 +222,8 @@ move_met:                               ;tecla 8
     MOV R0, 8 
     CMP R1, R0
     JNZ next
+	MOV R0, 0
+	MOV [PLAY_MEDIA], R0					;reproduz efeito sonoro
     MOV R0, [Meteor_exists]
     CMP R0, 0                            ;verifica se o meteoro ainda existe 
     JZ next
