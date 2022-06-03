@@ -30,9 +30,9 @@ PLAY_MEDIA              EQU 605AH
 COR_F        EQU 0F00FH
 COR_M        EQU 0FF00H
 COR_E        EQU 0F0F0H
-ALTURA       EQU  3
+ALTURA       EQU  3         ;
 LARGURA      EQU  3
-LINHA        EQU  29      ; linha do boneco (a meio do ecrã)) (estatica)
+LINHA        EQU  29        ; linha do boneco (a meio do ecrã)) (estatica)
 COLUNA       EQU  31        ; coluna do boneco (a meio do ecrã) (inicial)
 
 PLACE 1000H
@@ -56,10 +56,12 @@ Figure: WORD ALTURA, LARGURA, LINHA, COLUNA
         WORD 0, COR_F, 0
         WORD COR_F, 0, COR_F
 
-Meteor:  WORD 3, 3, 0, 31
-         WORD 0, COR_M, 0
-         WORD COR_M, 0, COR_M
-         WORD 0, COR_M, 0
+Meteor:  WORD 5, 5, 0, 31
+         WORD 0, COR_M,  COR_M,  COR_M, COR_M
+         WORD COR_M, COR_M, COR_M, 0, 0
+         WORD COR_M, COR_M, COR_M, COR_M, COR_M
+         WORD COR_M, COR_M, COR_M, COR_M, COR_M
+         WORD 0, COR_M, 0, 0, COR_M
 
 
 
@@ -191,13 +193,13 @@ move_right:                             ; tecla 3
     MOV R2, [Figure+6]  ;coluna
     MOV R4, [Figure]    ;altura
     MOV R5, [Figure+2]  ;largura
-    CALL delete_something               ;apaga o rover
+    CALL delete_something                ;apaga o rover
 
-    MOV R0, [Figure+6]                  ;aumenta a coluna 
+    MOV R0, [Figure+6]                   ;aumenta a coluna 
     ADD R0, 1
     MOV [Figure+6], R0
     MOV R0, Figure
-    CALL write_something               ;escreve o rover na nova posicao
+    CALL write_something                 ;escreve o rover na nova posicao
     JMP next
 
 sub_counter:                             ;tecla 4
@@ -210,14 +212,14 @@ sub_counter:                             ;tecla 4
     CALL change_counter                  ;diminui o counter (R1 e o valor incrementado ao counter)
     JMP next
 
-add_counter:                             ;7
+add_counter:                             ;tecla 7
     CMP R1, 7
     JNZ move_met
     MOV R1, 1
     CALL change_counter                  ;aumenta o counter (R1 e o valor incrementado ao counter)
     JMP next
 
-move_met:
+move_met:                               ;tecla 8 
     MOV R0, 8 
     CMP R1, R0
     JNZ next
@@ -443,8 +445,10 @@ move_meteor:
     MOV R1, [Meteor]    ; altura
     ADD R0, R1
     SUB R0, 1
-    MOV R1, 28
-    SUB R0, R1          ;border check  (se linha + altura - 1 = 28 (3 antes do final (altura do rover)) chegou ao final)
+    MOV R1, 31
+    MOV R2, [Figure]
+    SUB R1, R2
+    SUB R0, R1          ;border check  (se linha + altura - 1 = 31(max) - altura do rover chegou ao final)
     JZ reached_end
 normal:
     MOV R1, [Meteor+4]
