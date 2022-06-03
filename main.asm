@@ -144,8 +144,10 @@ coluna_converter:
     MOV R0, [Coluna]
     ADD R1, R0
     MOV [Tecla], R1                     ; tecla = 4*linha + coluna
+    JMP move_left
 
-
+jump_aux:
+    JMP espera_tecla
 
 
 move_left:                              ; tecla 0
@@ -221,8 +223,8 @@ move_met:                               ;tecla 8
     MOV R0, 8 
     CMP R1, R0
     JNZ next
-	MOV R0, 0
-	MOV [PLAY_MEDIA], R0			    ;reproduz efeito sonoro
+    MOV R0, 0
+    MOV [PLAY_MEDIA], R0                ;reproduz efeito sonoro
     MOV R0, [Meteor_exists]
     CMP R0, 0                           ;verifica se o meteoro ainda existe 
     JZ next
@@ -232,11 +234,6 @@ next:
 
 
 ha_tecla:                               ; neste ciclo espera-se até NENHUMA tecla estar premida
-    MOV R0, [Move_flag]
-    CMP R0, 0
-    JZ not_move                         ;se a tecla premida for de movimento repete o movimento
-    CALL tecla_premida
-not_move:
     MOV R0, TEC_LIN
     MOV R1, [LinhaAux]
     MOVB [R0], R1                       ; escrever no periférico de saída (Linhas)
@@ -247,9 +244,12 @@ not_move:
     MOV R1, MASCARA
     AND  R0, R1                         ; elimina bits para além dos bits 0-3
     CMP  R0, 0                          ; há tecla premida?
-    JNZ  ha_tecla                       ; se ainda houver uma tecla premida, espera até não haver
-    JMP  espera_tecla
-
+    JZ  jump_aux                       ; se ainda houver uma tecla premida, espera até não haver
+    MOV R0, [Move_flag]
+    CMP R0, 0
+    JZ ha_tecla
+    CALL tecla_premida
+    JMP ha_tecla
 
 
 ;funcoes-------------------------------------------------------------
@@ -257,8 +257,8 @@ not_move:
 ; **********************************************************************
 ; tecla premida - move figura para quando a tecla continua premida
 ; Argumentos:   R0 - 1 quando move para a esquerda e 2 para a direita
-;               R
-;               R
+;               
+;               
 ;
 ; **********************************************************************
 
@@ -320,7 +320,7 @@ end6:                                   ;quando chega ao final, desativa a flag 
     MOV R1, 0
     MOV [Move_flag], R1
 end5:
-    CALL atraso                         ;mucho rapido normalmente
+    CALL atraso                         ;atrasa o movimento
     POP R5
     POP R4
     POP R3
