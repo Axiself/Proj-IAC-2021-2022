@@ -153,7 +153,7 @@ move_left:                              ; tecla 0
     JNZ move_right
 
     MOV R2, 1
-    MOV [Move_flag], R                  ;ativa flag para mover repetidamente
+    MOV [Move_flag], R2                  ;ativa flag para mover repetidamente
 
     MOV R2, [Figure+6]                  ;border check (coluna 0)
     CMP R2, 0
