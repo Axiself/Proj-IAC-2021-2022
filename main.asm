@@ -73,13 +73,24 @@ STACK 100H
 SP_inicial_rover:
 
 
-Linha: WORD 16
-Tecla: WORD 0
-Coluna: WORD 0
-Counter: WORD 0
-LinhaAux: WORD 0
-Meteor_exists: WORD 1
-Move_flag: WORD 0                       ; 0 para none, 1 for left, 2 for right
+Linha:
+	WORD 16
+Tecla:
+	WORD 0
+Coluna:
+	WORD 0
+Counter:
+	WORD 0
+LinhaAux:
+	WORD 0
+Meteor_exists:
+	WORD 1
+Move_flag:
+	WORD 0                       		; 0 para none, 1 for left, 2 for right
+tecla_pressionada:
+	LOCK 0
+tecla_continua:
+	LOCK 0
 
 
 Figure: WORD ALTURA, LARGURA, LINHA, COLUNA
@@ -114,70 +125,60 @@ MOV  [SELECIONA_CENARIO_FUNDO], R0      ; seleciona o cenário de fundo
 
 MOV R0, DISPLAYS
 MOV  R1, 0
-MOV [R0], R1                            ;reset display
+MOV [R0], R1                            ; reset display
 
 MOV R0, Figure
-CALL write_something                    ;inicializa o rover
+CALL write_something                    ; inicializa o rover
 MOV R0, Meteor
-CALL write_something                    ;inicializa o meteoro
+CALL write_something                    ; inicializa o meteoro
+CALL P_teclado							; inicializa processo que gere o teclado
+;CALL P_rover							; inicializa processo do movimento do rover
+
+waiting:
+	WAIT
+	JMP waiting							; ciclo temporario para testar processos
+
+PROCESS SP_inicial_teclado
+
+P_teclado:
+
+	MOV  R2, TEC_LIN		; endereço do periférico das linhas
+	MOV  R3, TEC_COL		; endereço do periférico das colunas
+	MOV  R5, MASCARA		; para isolar os 4 bits de menor peso, ao ler as colunas do teclado
+
+espera_tecla:
+
+	YIELD								; ponto de fuga pois este ciclo pode ser bloqueante
+	MOV  R1, 8	 			; primeira linha a testar é a linha 4 
+verifica_linhas:                           ; neste ciclo espera-se até uma tecla ser premida
+	MOVB [R2], R1			; escrever no periférico de saída (linhas)
+	MOVB R0, [R3]			; ler do periférico de entrada (colunas)
+	AND  R0, R5			; elimina bits para além dos bits 0-3
+	JNZ converte;
+	SHR R1, 1							; passa à próxima linha
+	JZ espera_tecla						; espera até haver atividade no teclado
+	JMP verifica_linhas					; repete para a prox linha
+converte:
+	CALL converte_tecla;				; coloca o valor da tecla premida em R6
+	MOV [tecla_pressionada], R6				; desbloqueia processos que esperam por uma tecla premida
+
+ha_tecla:
+
+	YIELD								; ponto de fuga pois este ciclo pode ser bloqueante
+	MOV  R1, 8	 			; primeira linha a testar é a linha 4 
+	MOV [tecla_continua], R6			; desbloqueia processos que dependem de teclas premidas continuamente
+verifica_linhas2:
+	MOVB [R2], R1			; escrever no periférico de saída (linhas)
+	MOVB R0, [R3]			; ler do periférico de entrada (colunas)
+	AND  R0, R5			; elimina bits para além dos bits 0-3
+	JNZ ha_tecla;						; se há uma tecla a ser premida, espera até não haver
+	SHR R1, 1							; passa à próxima linha
+	JZ espera_tecla						; quando não houver tecla a ser premida volta ao espera_tecla
+	JMP verifica_linhas2				; repete para a prox linha
+	
+; ----------------------------------
 
 
-espera_tecla:                           ; neste ciclo espera-se até uma tecla ser premida
-
-    MOV R0, [Linha]
-    SHR R0, 1                           ; -1 Linha
-    MOV [Linha], R0
-
-    JNZ   no_reset         
-    CALL  reset                         ; quando a Linha chega a 0 volta a 4 
-no_reset:
-
-    MOV R0, TEC_LIN
-    MOV  R1, [Linha] 
-    MOVB [R0], R1                       ; escrever no periférico de saída (Linhas)
-
-    MOV R0, 0
-    MOV R1, TEC_COL
-    MOVB R0, [R1]                       ; ler do periférico de entrada (colunas)
-
-    MOV R1, MASCARA
-    AND  R0, R1                         ; elimina bits para além dos bits 0-3
-
-    CMP  R0, 0                          ; há tecla premida?
-    JZ   espera_tecla                   ; se nenhuma tecla premida, repete
-                                        ; vai mostrar a Linha e a coluna da tecla                   
-    MOV [Coluna], R0
-
-
-    MOV R0, [Linha]
-    MOV [LinhaAux], R0                  ; coluna nao convertida para ser usada em ha_tecla
-    MOV R1, 0
-linha_converter:
-    ADD R1, 1    
-    SHR R0, 1
-    JNZ linha_converter
-    SUB R1, 1
-    MOV [Linha], R1
-
-
-    MOV R0, [Coluna]
-    MOV R1, 0
-coluna_converter:
-    ADD R1, 1
-    SHR R0, 1
-    JNZ coluna_converter
-    SUB R1, 1
-    MOV [Coluna], R1
-                                        ; converte linha e coluna de 1,2,4,8 a 0,1,2,3 fazendo shift rights ate ficar 0 (contar o expoente do 2)
-  
-    MOV R0, [Linha]
-    MOV R1, 4
-    MUL R0, R1
-    MOV R1, 0
-    ADD R1, R0
-    MOV R0, [Coluna]
-    ADD R1, R0
-    MOV [Tecla], R1                     ; tecla = 4*linha + coluna
     JMP move_left
 
 jump_aux:
@@ -261,7 +262,7 @@ move_met:                               ; tecla 8
 next:
 
 
-ha_tecla:                               ; neste ciclo espera-se até NENHUMA tecla estar premida
+;ha_tecla:                               ; neste ciclo espera-se até NENHUMA tecla estar premida
     MOV R0, TEC_LIN
     MOV R1, [LinhaAux]
     MOVB [R0], R1                       ; escrever no periférico de saída (Linhas)
@@ -284,6 +285,47 @@ ha_tecla:                               ; neste ciclo espera-se até NENHUMA tec
 ; | ---------------------------- Funções ----------------------------- |
 ; | ------------------------------------------------------------------ |
 
+; **********************************************************************
+
+; converte_tecla - Converte uma posição not teclado para a sua tecla
+;	correspondente. Coloca o valor da tecla no registo R6.
+; Argumentos:   R0 - Coluna
+;				R1 - Linha
+;
+; **********************************************************************
+
+converte_tecla:
+
+	PUSH R0
+	PUSH R1
+	PUSH R2
+	PUSH R3
+
+	MOV R2, -1							; Coluna
+	MOV R3, -1							; Linha
+
+converte_coluna:
+
+	ADD R2, 1
+	SHR R0, 1
+	JNZ converte_coluna
+
+converte_linha:
+
+	ADD R3, 1
+	SHR R1, 1
+	JNZ converte_linha
+
+	MOV R6, R3
+	MOV R0, 4							; multiplicação por 4
+	MUL R6, R0 							; tecla = 4 x linha + coluna
+	ADD R6, R2
+
+	POP R3
+	POP R2
+	POP R1
+	POP R0
+	RET
 
 ; **********************************************************************
 
