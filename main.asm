@@ -1,11 +1,31 @@
+; <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 ;
+; IST 2021/22
+; Cadeira de IAC
+;
+; Entrega Final
+; 
+; Grupo 18:
+; 	-> Rui Amaral: ist1103155
+; 	-> Miguel: ist1xxxxxx
+; 	-> JP: ist1xxxxx
+;
+; >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+
+
+
+; Controlos:
 ;   0 move para a esquerda 
 ;   2 move para a direita
 ;   4 diminui o display
 ;   7 aumenta o display
 ;   8 move o meteoro
-;
-;
+
+
+; | ------------------------------------------------------------------ |
+; | --------------------------- Constantes --------------------------- |
+; | ------------------------------------------------------------------ |
+
 
 ; COUNTER E TECLADO
 
@@ -14,7 +34,7 @@ TEC_LIN    EQU 0C000H                   ; endereço das [Linha]s do teclado (per
 TEC_COL    EQU 0E000H                   ; endereço das colunas do teclado (periférico PIN)
 MASCARA    EQU 0FH                      ; para isolar os 4 bits de menor peso, ao ler as colunas do teclado
 
-; ECRA
+; ECRÃ
 
 DEFINE_LINHA            EQU 600AH       ; endereço do comando para definir a linha
 DEFINE_COLUNA           EQU 600CH       ; endereço do comando para definir a coluna
@@ -25,7 +45,7 @@ SELECIONA_CENARIO_FUNDO EQU 6042H       ; endereço do comando para selecionar u
 SELECIONA_MEDIA         EQU 6048H
 PLAY_MEDIA              EQU 605AH
 
-;FIGURAS 
+; FIGURAS 
 
 COR_F        EQU 0F00FH
 COR_M        EQU 0FF00H
@@ -35,12 +55,23 @@ LARGURA      EQU  3
 LINHA        EQU  29                    ; linha do boneco (a meio do ecrã)) (estatica)
 COLUNA       EQU  31                    ; coluna do boneco (a meio do ecrã) (inicial)
 
+
+; | ------------------------------------------------------------------ |
+; | ----------------------------- Dados ------------------------------ |
+; | ------------------------------------------------------------------ |
+
 PLACE 1000H
 
-pilha:
-    STACK 100H                          ; espaço reservado para a pilha 
+; Reserva de espaço para as pilhas
+STACK 100H                              ; espaço reservado para a pilha 
+SP_inicial_principal:                   ; endereco do SP
 
-SP_inicial:                             ; endereco do SP
+STACK 100H
+SP_inicial_teclado:
+
+STACK 100H
+SP_inicial_rover:
+
 
 Linha: WORD 16
 Tecla: WORD 0
@@ -48,7 +79,7 @@ Coluna: WORD 0
 Counter: WORD 0
 LinhaAux: WORD 0
 Meteor_exists: WORD 1
-Move_flag: WORD 0                       ;  0 para none, 1 for left, 2 for right
+Move_flag: WORD 0                       ; 0 para none, 1 for left, 2 for right
 
 
 Figure: WORD ALTURA, LARGURA, LINHA, COLUNA
@@ -64,14 +95,17 @@ Meteor:  WORD 5, 5, 0, 31
          WORD 0, COR_M, 0, 0, COR_M
 
 
+; | ------------------------------------------------------------------ |
+; | ----------------------------- Código ----------------------------- |
+; | ------------------------------------------------------------------ |
 
-PLACE 0H ;---------------------------------------------------------------------------------------
+PLACE 0H
 
 
-MOV  SP, SP_inicial                     ; inicializa SP para a palavra a seguir
+MOV  SP, SP_inicial_principal           ; inicializa SP para a palavra a seguir
                                         ; à última da pilha
                             
-MOV  [APAGA_AVISO], R1                   ; apaga o aviso de nenhum cenário selecionado (o valor de R1 não é relevante)
+MOV  [APAGA_AVISO], R1                  ; apaga o aviso de nenhum cenário selecionado (o valor de R1 não é relevante)
 MOV  [APAGA_ECRÃ], R1                   ; apaga todos os pixels já desenhados (o valor de R1 não é relevante)
 MOV  R0, 0                              ; cenário de fundo número 0
 MOV  [SELECIONA_CENARIO_FUNDO], R0      ; seleciona o cenário de fundo
@@ -116,7 +150,7 @@ no_reset:
 
 
     MOV R0, [Linha]
-    MOV [LinhaAux], R0                   ;coluna nao convertida para ser usada em ha_tecla
+    MOV [LinhaAux], R0                  ; coluna nao convertida para ser usada em ha_tecla
     MOV R1, 0
 linha_converter:
     ADD R1, 1    
@@ -134,7 +168,7 @@ coluna_converter:
     JNZ coluna_converter
     SUB R1, 1
     MOV [Coluna], R1
-                                        ;converte linha e coluna de 1,2,4,8 a 0,1,2,3 fazendo shift rights ate ficar 0 (contar o expoente do 2)
+                                        ; converte linha e coluna de 1,2,4,8 a 0,1,2,3 fazendo shift rights ate ficar 0 (contar o expoente do 2)
   
     MOV R0, [Linha]
     MOV R1, 4
@@ -155,31 +189,31 @@ move_left:                              ; tecla 0
     JNZ move_right
 
     MOV R2, 1
-    MOV [Move_flag], R2                 ;ativa flag para mover repetidamente
+    MOV [Move_flag], R2                 ; ativa flag para mover repetidamente
 
-    MOV R2, [Figure + 6]                ;border check (coluna 0)
+    MOV R2, [Figure + 6]                ; border check (coluna 0)
     CMP R2, 0
     JZ next
 
     MOV R0, Figure
-    CALL delete_something               ;apaga o rover
+    CALL delete_something               ; apaga o rover
 
 
     MOV R0, [Figure + 6]                   
     SUB R0, 1
     MOV [Figure + 6], R0
-    MOV R0, Figure                      ;diminui a coluna
-    CALL write_something                ;escreve o rover na nova posicao
+    MOV R0, Figure                      ; diminui a coluna
+    CALL write_something                ; escreve o rover na nova posicao
     JMP next
 
 move_right:                             ; tecla 2
     CMP R1, 2
     JNZ sub_counter
 
-    MOV [Move_flag], R1                 ;ativa a flag para mover repetidamente
+    MOV [Move_flag], R1                 ; ativa a flag para mover repetidamente
 
-    MOV R1, [Figure + 6]                ;coluna
-    MOV R2, [Figure + 2]                ;largura
+    MOV R1, [Figure + 6]                ; coluna
+    MOV R2, [Figure + 2]                ; largura
     ADD R1, R2
     SUB R1, 1
     MOV R2, 63
@@ -187,42 +221,42 @@ move_right:                             ; tecla 2
     JZ next                             ; coluna + largura - maximo (63) - 1 = 0 -> end (border check)
 
     MOV R0, Figure
-    CALL delete_something               ;apaga o rover
+    CALL delete_something               ; apaga o rover
 
-    MOV R0, [Figure + 6]                ;aumenta a coluna 
+    MOV R0, [Figure + 6]                ; aumenta a coluna 
     ADD R0, 1
     MOV [Figure+6], R0
     MOV R0, Figure
-    CALL write_something                ;escreve o rover na nova posicao
+    CALL write_something                ; escreve o rover na nova posicao
     JMP next
 
-sub_counter:                            ;tecla 4
+sub_counter:                            ; tecla 4
     MOV R2, 0
-    MOV [Move_flag], R2                 ;desativa a  flag para mover continuamente (so por precaucao)
+    MOV [Move_flag], R2                 ; desativa a  flag para mover continuamente (so por precaucao)
 
     CMP R1, 4
     JNZ add_counter
     MOV R1, -1
-    CALL change_counter                 ;diminui o counter (R1 e o valor incrementado ao counter)
+    CALL change_counter                 ; diminui o counter (R1 e o valor incrementado ao counter)
     JMP next
 
-add_counter:                            ;tecla 7
+add_counter:                            ; tecla 7
     CMP R1, 7
     JNZ move_met
     MOV R1, 1
-    CALL change_counter                 ;aumenta o counter (R1 e o valor incrementado ao counter)
+    CALL change_counter                 ; aumenta o counter (R1 e o valor incrementado ao counter)
     JMP next
 
-move_met:                               ;tecla 8 
+move_met:                               ; tecla 8 
     MOV R0, 8 
     CMP R1, R0
     JNZ next
     MOV R0, 0
-    MOV [PLAY_MEDIA], R0                ;reproduz efeito sonoro
+    MOV [PLAY_MEDIA], R0                ; reproduz efeito sonoro
     MOV R0, [Meteor_exists]
-    CMP R0, 0                           ;verifica se o meteoro ainda existe 
+    CMP R0, 0                           ; verifica se o meteoro ainda existe 
     JZ next
-    CALL move_meteor                    ;se sim move o para baixo
+    CALL move_meteor                    ; se sim move o para baixo
 
 next:
 
@@ -238,7 +272,7 @@ ha_tecla:                               ; neste ciclo espera-se até NENHUMA tec
     MOV R1, MASCARA
     AND  R0, R1                         ; elimina bits para além dos bits 0-3
     CMP  R0, 0                          ; há tecla premida?
-    JZ  jump_aux                       ; se ainda houver uma tecla premida, espera até não haver
+    JZ  jump_aux                        ; se ainda houver uma tecla premida, espera até não haver
     MOV R0, [Move_flag]
     CMP R0, 0
     JZ ha_tecla
@@ -269,10 +303,10 @@ tecla_premida:
     MOV R0, [Move_flag]
     CMP R0, 1
     JZ left
-    JMP right                           ;seleciona a direcao do movimento
+    JMP right                           ; seleciona a direcao do movimento
 
 left:
-    MOV R2, [Figure + 6]                ;border check
+    MOV R2, [Figure + 6]                ; border check
     CMP R2, 0
     JZ end6
 
@@ -280,16 +314,16 @@ left:
     CALL delete_something
 
 
-    MOV R0, [Figure + 6]                ;menos coluna 
+    MOV R0, [Figure + 6]                ; menos coluna 
     SUB R0, 1
-    MOV [Figure + 6], R0                ;atualiza a coluna da figura
+    MOV [Figure + 6], R0                ; atualiza a coluna da figura
     MOV R0, Figure
     CALL write_something
     JMP end5
 
 right:
-    MOV R1, [Figure + 6]                ;coluna
-    MOV R2, [Figure + 2]                ;largura
+    MOV R1, [Figure + 6]                ; coluna
+    MOV R2, [Figure + 2]                ; largura
     ADD R1, R2
     SUB R1, 1
     MOV R2, 63
@@ -299,18 +333,18 @@ right:
     MOV R0, Figure
     CALL delete_something
 
-    MOV R0, [Figure + 6]                ;mais coluna 
+    MOV R0, [Figure + 6]                ; mais coluna 
     ADD R0, 1
-    MOV [Figure + 6], R0                ;atualiza a coluna da figura
+    MOV [Figure + 6], R0                ; atualiza a coluna da figura
     MOV R0, Figure
     CALL write_something
     JMP end5
 
-end6:                                   ;quando chega ao final, desativa a flag de mover
+end6:                                   ; quando chega ao final, desativa a flag de mover
     MOV R1, 0
     MOV [Move_flag], R1
 end5:
-    CALL atraso                         ;atrasa o movimento
+    CALL atraso                         ; atrasa o movimento
     POP R5
     POP R4
     POP R3
@@ -358,10 +392,10 @@ change_counter:
     PUSH  R0
     PUSH  R1
     MOV   R0, [Counter]
-    ADD   R0, R1                        ;adiciona
-    MOV   [Counter], R0                 ;atualiza o counter
+    ADD   R0, R1                        ; adiciona
+    MOV   [Counter], R0                 ; atualiza o counter
     MOV   R1, DISPLAYS   
-    MOV   [R1], R0                      ;write on display
+    MOV   [R1], R0                      ; write on display
     POP   R1
     POP   R0
     RET
@@ -387,20 +421,20 @@ write_something:
     MOV R5, [R0 + 2]                    ; Largura
     MOV R6, 8
     ADD R6, R0
-    MOV R3, [R6]                        ;cor do primeiro pixel
+    MOV R3, [R6]                        ; cor do primeiro pixel
 prox_col2:
     CALL escreve_pixel 
-    ADD R2, 1                           ;proxima coluna
-    ADD R6, 2                           ;proximo pixel
-    MOV R3, [R6]						;define cor para o proximo escreve_pixel
-    SUB R5, 1                           ;menos uma coluna restante
-    JZ prox_lin2                        ;se acabarem as colunas
+    ADD R2, 1                           ; proxima coluna
+    ADD R6, 2                           ; proximo pixel
+    MOV R3, [R6]						; define cor para o proximo escreve_pixel
+    SUB R5, 1                           ; menos uma coluna restante
+    JZ prox_lin2                        ; se acabarem as colunas
     JMP prox_col2
 prox_lin2:
-    MOV R5, [R0 + 2]                    ;faltam todas as colunas outra vez
-    MOV R2, [R0 + 6]                    ;coluna volta a primeira
-    ADD R1, 1                           ;proxima linha
-    SUB R4, 1                           ;menos uma linha restante
+    MOV R5, [R0 + 2]                    ; faltam todas as colunas outra vez
+    MOV R2, [R0 + 6]                    ; coluna volta a primeira
+    ADD R1, 1                           ; proxima linha
+    SUB R4, 1                           ; menos uma linha restante
     JZ end3 
     JMP prox_col2
 end3:
@@ -433,17 +467,17 @@ move_meteor:
     MOV R1, 31
     MOV R2, [Figure]
     SUB R1, R2
-    SUB R0, R1                          ;border check  (se linha + altura - 1 = 31(max) - altura do rover chegou ao final)
+    SUB R0, R1                          ; border check  (se linha + altura - 1 = 31(max) - altura do rover chegou ao final)
     JZ reached_end
 normal:
     MOV R0, Meteor
-    CALL delete_something               ;apaga o meteoro
+    CALL delete_something               ; apaga o meteoro
 
     MOV R0, [Meteor + 4]
     ADD R0, 1
-    MOV [Meteor + 4], R0                ;atualiza a linha do meteoro (aumenta por 1)
+    MOV [Meteor + 4], R0                ; atualiza a linha do meteoro (aumenta por 1)
     MOV R0, Meteor
-    CALL write_something                ;escreve o meteoro
+    CALL write_something                ; escreve o meteoro
     JMP end4
 
 reached_end:
@@ -463,8 +497,8 @@ end4:
 
 ; **********************************************************************
 
-; delete_something- apaga alguma coisa com a sua localizacao e dimensao 
-; Argumentos: R0 - Tabela que define o elemento que se pretende apagar
+; delete_something- apaga uma figura de um ecrã
+; Argumentos: R0 - Tabela que define a figura que se pretende apagar
 ;
 ; **********************************************************************
 
@@ -474,23 +508,23 @@ delete_something:
     PUSH R3
     PUSH R4
     PUSH R5
-    MOV R1, [R0 + 4]					;Linha do elemento
-    MOV R2, [R0 + 6]					;Coluna do elemento
-    MOV R4, [R0]						;Altura do elemento
-    MOV R5, [R0 + 2]                    ;Largura do elemento
-    MOV R3, 0                           ;define cor para o escreve_pixel
+    MOV R1, [R0 + 4]					; Linha da figura
+    MOV R2, [R0 + 6]					; Coluna da figura
+    MOV R4, [R0]						; Altura da figura
+    MOV R5, [R0 + 2]                    ; Largura da figura
+    MOV R3, 0                           ; define cor para o escreve_pixel
 prox_col:
     CALL escreve_pixel
-    ADD R2, 1                           ;prox col
-    SUB R5, 1                           ;menos um de largura remaining
+    ADD R2, 1                           ; prox col
+    SUB R5, 1                           ; menos um de largura remaining
     JZ prox_lin
     JMP prox_col
 
 prox_lin:
-    MOV R5, [R0 + 2]                    ;reset largura
-    MOV R2, [R0 + 6]                    ;reset coluna
-    ADD R1, 1                           ;prox linha
-    SUB R4, 1                           ;menos um de altura remaining
+    MOV R5, [R0 + 2]                    ; reset largura
+    MOV R2, [R0 + 6]                    ; reset coluna
+    ADD R1, 1                           ; prox linha
+    SUB R4, 1                           ; menos um de altura remaining
     JZ end2
     JMP prox_col
 
