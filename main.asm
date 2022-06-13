@@ -44,6 +44,7 @@ APAGA_ECRÃ              EQU 6002H       ; endereço do comando para apagar todo
 SELECIONA_CENARIO_FUNDO EQU 6042H       ; endereço do comando para selecionar uma imagem de fundo
 SELECIONA_MEDIA         EQU 6048H
 PLAY_MEDIA              EQU 605AH
+MAX_PIXEL 				EQU 63
 
 ; FIGURAS 
 
@@ -54,6 +55,11 @@ ALTURA       EQU  3
 LARGURA      EQU  3
 LINHA        EQU  29                    ; linha do boneco (a meio do ecrã)) (estatica)
 COLUNA       EQU  31                    ; coluna do boneco (a meio do ecrã) (inicial)
+	
+; TECLAS
+
+TEC_ROV_ESQ 			EQU 0000H
+TEC_ROV_DIR 			EQU 0002H
 
 
 ; | ------------------------------------------------------------------ |
@@ -132,7 +138,7 @@ CALL write_something                    ; inicializa o rover
 MOV R0, Meteor
 CALL write_something                    ; inicializa o meteoro
 CALL P_teclado							; inicializa processo que gere o teclado
-;CALL P_rover							; inicializa processo do movimento do rover
+CALL P_rover							; inicializa processo do movimento do rover
 
 waiting:
 	WAIT
@@ -178,6 +184,40 @@ verifica_linhas2:
 	
 ; ----------------------------------
 
+PROCESS SP_inicial_rover
+
+P_rover:
+
+	MOV R0, Figure						; endereço do rover
+	MOV R4, [R0 + 2]					; largura do rover
+	MOV R3, MAX_PIXEL					; coluna de pixeis do limite direio do ecrã
+	ADD R3, 1
+	SUB R3, R4		 					; posição maxima que o rover pode ocupar tendo em conta a sua largura
+
+check_move_direction:
+	MOV R5, [tecla_continua]
+	CMP R5, TEC_ROV_ESQ
+	JNZ move_right
+	MOV R1, -1							; valor a ser somado à posição do rover para este se mover para a esquerda
+	JMP move_rover
+move_right:
+	CMP R5, TEC_ROV_DIR
+	JNZ check_move_direction
+	MOV R1, 1							; valor a ser somado à posição do rover para este se mover para a direita
+
+move_rover:
+	MOV R2, [R0 + 6]					; posição atual do rover
+	ADD R2, R1							; nova posição do rover após movimento
+	JN check_move_direction				; se passa do limite esquerdo, não é executado movimento
+	CMP R2, R3
+	JGT check_move_direction			; se passa do limite direito, não é executado movimento
+	CALL delete_something
+	MOV [R0 + 6], R2					; altera posição do rover para se desencadear o movimento
+	CALL write_something
+	CALL atraso
+	JMP check_move_direction			; este processo nunca termina
+
+; ----------------------------------
 
     JMP move_left
 
@@ -207,7 +247,7 @@ move_left:                              ; tecla 0
     CALL write_something                ; escreve o rover na nova posicao
     JMP next
 
-move_right:                             ; tecla 2
+;move_right:                             ; tecla 2
     CMP R1, 2
     JNZ sub_counter
 
