@@ -105,6 +105,10 @@ missile_lock:
 energy_lock: 
     LOCK 0
 
+Interrupcoes: WORD int_meteor
+              WORD int_missile
+              WORD int_energy
+
 ; Figuras
 Rover: WORD ALTURA, LARGURA, LINHA, COLUNA, R_sprite
 
