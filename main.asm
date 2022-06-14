@@ -51,6 +51,7 @@ MAX_PIXEL 				EQU 63
 COR_F        EQU 0F00FH
 COR_M        EQU 0FF00H
 COR_E        EQU 0F0F0H
+COR_CINZENTO EQU 0D888H
 ALTURA       EQU  3         
 LARGURA      EQU  3
 LINHA        EQU  29                    ; linha do boneco (a meio do ecrã)) (estatica)
@@ -98,18 +99,34 @@ tecla_pressionada:
 tecla_continua:
 	LOCK 0
 
+; Figuras
+Rover: WORD ALTURA, LARGURA, LINHA, COLUNA, R_sprite
 
-Figure: WORD ALTURA, LARGURA, LINHA, COLUNA
-        WORD COR_F, 0, COR_F
+Meteor0:  WORD 1, 1, 0, 0, M_sprite0
+Meteor1:  WORD 1, 1, 0, 0, M_sprite0
+Meteor2:  WORD 1, 1, 0, 0, M_sprite0
+Meteor3:  WORD 1, 1, 0, 0, M_sprite0
+
+; Sprites
+R_sprite: WORD COR_F, 0, COR_F
         WORD 0, COR_F, 0
         WORD COR_F, 0, COR_F
 
-Meteor:  WORD 5, 5, 0, 31
-         WORD 0, COR_M,  COR_M,  COR_M, COR_M
-         WORD COR_M, COR_M, COR_M, 0, 0
-         WORD COR_M, COR_M, COR_M, COR_M, COR_M
-         WORD COR_M, COR_M, COR_M, COR_M, COR_M
-         WORD 0, COR_M, 0, 0, COR_M
+M_sprite0: WORD COR_CINZENTO
+M_sprite1: WORD COR_CINZENTO, COR_CINZENTO
+		WORD COR_CINZENTO, COR_CINZENTO
+M_sprite2: WORD 0, COR_M, COR_M
+		WORD COR_M, COR_M, 0
+		WORD 0, COR_M, COR_M
+M_sprite3: WORD 0, COR_M, COR_M, COR_M
+		WORD COR_M, COR_M, 0, 0
+		WORD COR_M, COR_M, COR_M, COR_M
+		WORD 0, COR_M, 0, COR_M
+M_sprite4: WORD 0, COR_M,  COR_M,  COR_M, COR_M
+		WORD COR_M, COR_M, COR_M, 0, 0
+		WORD COR_M, COR_M, COR_M, COR_M, COR_M
+		WORD COR_M, COR_M, COR_M, COR_M, COR_M
+		WORD 0, COR_M, 0, 0, COR_M
 
 
 ; | ------------------------------------------------------------------ |
@@ -133,9 +150,9 @@ MOV R0, DISPLAYS
 MOV  R1, 0
 MOV [R0], R1                            ; reset display
 
-MOV R0, Figure
+MOV R0, Rover 
 CALL write_something                    ; inicializa o rover
-MOV R0, Meteor
+MOV R0, Meteor0
 CALL write_something                    ; inicializa o meteoro
 CALL P_teclado							; inicializa processo que gere o teclado
 CALL P_rover							; inicializa processo do movimento do rover
@@ -188,7 +205,7 @@ PROCESS SP_inicial_rover
 
 P_rover:
 
-	MOV R0, Figure						; endereço do rover
+	MOV R0, Rover						; endereço do rover
 	MOV R4, [R0 + 2]					; largura do rover
 	MOV R3, MAX_PIXEL					; coluna de pixeis do limite direio do ecrã
 	ADD R3, 1
@@ -232,18 +249,18 @@ move_left:                              ; tecla 0
     MOV R2, 1
     MOV [Move_flag], R2                 ; ativa flag para mover repetidamente
 
-    MOV R2, [Figure + 6]                ; border check (coluna 0)
+    MOV R2, [Rover + 6]                ; border check (coluna 0)
     CMP R2, 0
     JZ next
 
-    MOV R0, Figure
+    MOV R0, Rover
     CALL delete_something               ; apaga o rover
 
 
-    MOV R0, [Figure + 6]                   
+    MOV R0, [Rover + 6]                   
     SUB R0, 1
-    MOV [Figure + 6], R0
-    MOV R0, Figure                      ; diminui a coluna
+    MOV [Rover + 6], R0
+    MOV R0, Rover                      ; diminui a coluna
     CALL write_something                ; escreve o rover na nova posicao
     JMP next
 
@@ -253,21 +270,21 @@ move_left:                              ; tecla 0
 
     MOV [Move_flag], R1                 ; ativa a flag para mover repetidamente
 
-    MOV R1, [Figure + 6]                ; coluna
-    MOV R2, [Figure + 2]                ; largura
+    MOV R1, [Rover + 6]                ; coluna
+    MOV R2, [Rover + 2]                ; largura
     ADD R1, R2
     SUB R1, 1
     MOV R2, 63
     SUB R1, R2
     JZ next                             ; coluna + largura - maximo (63) - 1 = 0 -> end (border check)
 
-    MOV R0, Figure
+    MOV R0, Rover
     CALL delete_something               ; apaga o rover
 
-    MOV R0, [Figure + 6]                ; aumenta a coluna 
+    MOV R0, [Rover + 6]                ; aumenta a coluna 
     ADD R0, 1
-    MOV [Figure+6], R0
-    MOV R0, Figure
+    MOV [Rover+6], R0
+    MOV R0, Rover
     CALL write_something                ; escreve o rover na nova posicao
     JMP next
 
@@ -388,37 +405,37 @@ tecla_premida:
     JMP right                           ; seleciona a direcao do movimento
 
 left:
-    MOV R2, [Figure + 6]                ; border check
+    MOV R2, [Rover + 6]                ; border check
     CMP R2, 0
     JZ end6
 
-    MOV R0, Figure
+    MOV R0, Rover
     CALL delete_something
 
 
-    MOV R0, [Figure + 6]                ; menos coluna 
+    MOV R0, [Rover + 6]                ; menos coluna 
     SUB R0, 1
-    MOV [Figure + 6], R0                ; atualiza a coluna da figura
-    MOV R0, Figure
+    MOV [Rover + 6], R0                ; atualiza a coluna da figura
+    MOV R0, Rover
     CALL write_something
     JMP end5
 
 right:
-    MOV R1, [Figure + 6]                ; coluna
-    MOV R2, [Figure + 2]                ; largura
+    MOV R1, [Rover + 6]                ; coluna
+    MOV R2, [Rover + 2]                ; largura
     ADD R1, R2
     SUB R1, 1
     MOV R2, 63
     SUB R1, R2
     JZ end6                             ; coluna + largura - maximo (63) - 1 = 0 -> end (border check)
 
-    MOV R0, Figure
+    MOV R0, Rover
     CALL delete_something
 
-    MOV R0, [Figure + 6]                ; mais coluna 
+    MOV R0, [Rover + 6]                ; mais coluna 
     ADD R0, 1
-    MOV [Figure + 6], R0                ; atualiza a coluna da figura
-    MOV R0, Figure
+    MOV [Rover + 6], R0                ; atualiza a coluna da figura
+    MOV R0, Rover
     CALL write_something
     JMP end5
 
@@ -501,8 +518,7 @@ write_something:
     MOV R2, [R0 + 6]                    ; Coluna
     MOV R4, [R0]                        ; Altura
     MOV R5, [R0 + 2]                    ; Largura
-    MOV R6, 8
-    ADD R6, R0
+    MOV R6, [R0 + 8]					; Endereço da tabela do sprite
     MOV R3, [R6]                        ; cor do primeiro pixel
 prox_col2:
     CALL escreve_pixel 
@@ -542,28 +558,28 @@ move_meteor:
     PUSH R3
     PUSH R4
     PUSH R5
-    MOV R0, [Meteor + 4]                ; linha
-    MOV R1, [Meteor]                    ; altura
+    MOV R0, [Meteor0 + 4]                ; linha
+    MOV R1, [Meteor0]                    ; altura
     ADD R0, R1
     SUB R0, 1
     MOV R1, 31
-    MOV R2, [Figure]
+    MOV R2, [Rover]
     SUB R1, R2
     SUB R0, R1                          ; border check  (se linha + altura - 1 = 31(max) - altura do rover chegou ao final)
     JZ reached_end
 normal:
-    MOV R0, Meteor
+    MOV R0, Meteor0
     CALL delete_something               ; apaga o meteoro
 
-    MOV R0, [Meteor + 4]
+    MOV R0, [Meteor0 + 4]
     ADD R0, 1
-    MOV [Meteor + 4], R0                ; atualiza a linha do meteoro (aumenta por 1)
-    MOV R0, Meteor
+    MOV [Meteor0 + 4], R0                ; atualiza a linha do meteoro (aumenta por 1)
+    MOV R0, Meteor0
     CALL write_something                ; escreve o meteoro
     JMP end4
 
 reached_end:
-    MOV R0, Meteor
+    MOV R0, Meteor0
     CALL delete_something               ; apaga o meteoro quando chega ao fim 
     MOV R0, 0
     MOV [Meteor_exists], R0             ; desativa a flag do meteoro para ignorar tentativas de o mover quando nao existe
