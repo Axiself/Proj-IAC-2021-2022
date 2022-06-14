@@ -36,11 +36,13 @@ MASCARA    EQU 0FH                      ; para isolar os 4 bits de menor peso, a
 
 ; ECRÃ
 
+SELECIONA_ECRA			EQU 6004H
 DEFINE_LINHA            EQU 600AH       ; endereço do comando para definir a linha
 DEFINE_COLUNA           EQU 600CH       ; endereço do comando para definir a coluna
 DEFINE_PIXEL            EQU 6012H       ; endereço do comando para escrever um pixel
 APAGA_AVISO             EQU 6040H       ; endereço do comando para apagar o aviso de nenhum cenário selecionado
-APAGA_ECRÃ              EQU 6002H       ; endereço do comando para apagar todos os pixels já desenhados
+APAGA_ECRAS				EQU 6002H		; endereço do comando para apagar todos os pixels já desenhados
+APAGA_ECRA              EQU 6000H       ; endereço do comando para apagar todos os pixeis de um certo ecrã
 SELECIONA_CENARIO_FUNDO EQU 6042H       ; endereço do comando para selecionar uma imagem de fundo
 SELECIONA_MEDIA         EQU 6048H
 PLAY_MEDIA              EQU 605AH
@@ -111,28 +113,45 @@ Interrupcoes: WORD int_meteor
 
 ; Figuras
 Rover: WORD ALTURA, LARGURA, LINHA, COLUNA, R_sprite
-
-Meteor0:  WORD 1, 1, 0, 0, M_sprite0
-Meteor1:  WORD 1, 1, 0, 0, M_sprite0
-Meteor2:  WORD 1, 1, 0, 0, M_sprite0
-Meteor3:  WORD 1, 1, 0, 0, M_sprite0
+; Altura, Largura, Linha, Coluna, Endereço do sprite, Tipo de meteoro (bom/mau)
+Meteor0:  WORD 1, 1, 0, 0, 0, 0
+Meteor1:  WORD 1, 1, 0, 0, 0, 0
+Meteor2:  WORD 1, 1, 0, 0, 0, 0
+Meteor3:  WORD 1, 1, 0, 0, 0, 0
 
 ; Sprites
 R_sprite: WORD COR_F, 0, COR_F
         WORD 0, COR_F, 0
         WORD COR_F, 0, COR_F
-
-M_sprite0: WORD COR_CINZENTO
-M_sprite1: WORD COR_CINZENTO, COR_CINZENTO
+; Meteoros maus
+Mm_sprite0: WORD COR_CINZENTO
+Mm_sprite1: WORD COR_CINZENTO, COR_CINZENTO
 		WORD COR_CINZENTO, COR_CINZENTO
-M_sprite2: WORD 0, COR_M, COR_M
+Mm_sprite2: WORD 0, COR_M, COR_M
 		WORD COR_M, COR_M, 0
 		WORD 0, COR_M, COR_M
-M_sprite3: WORD 0, COR_M, COR_M, COR_M
+Mm_sprite3: WORD 0, COR_M, COR_M, COR_M
 		WORD COR_M, COR_M, 0, 0
 		WORD COR_M, COR_M, COR_M, COR_M
 		WORD 0, COR_M, 0, COR_M
-M_sprite4: WORD 0, COR_M,  COR_M,  COR_M, COR_M
+Mm_sprite4: WORD 0, COR_M,  COR_M,  COR_M, COR_M
+		WORD COR_M, COR_M, COR_M, 0, 0
+		WORD COR_M, COR_M, COR_M, COR_M, COR_M
+		WORD COR_M, COR_M, COR_M, COR_M, COR_M
+		WORD 0, COR_M, 0, 0, COR_M
+
+; Meteoros bons
+Mb_sprite0: WORD COR_CINZENTO
+Mb_sprite1: WORD COR_CINZENTO, COR_CINZENTO
+		WORD COR_CINZENTO, COR_CINZENTO
+Mb_sprite2: WORD 0, COR_M, COR_M
+		WORD COR_M, COR_M, 0
+		WORD 0, COR_M, COR_M
+Mb_sprite3: WORD 0, COR_M, COR_M, COR_M
+		WORD COR_M, COR_M, 0, 0
+		WORD COR_M, COR_M, COR_M, COR_M
+		WORD 0, COR_M, 0, COR_M
+Mb_sprite4: WORD 0, COR_M,  COR_M,  COR_M, COR_M
 		WORD COR_M, COR_M, COR_M, 0, 0
 		WORD COR_M, COR_M, COR_M, COR_M, COR_M
 		WORD COR_M, COR_M, COR_M, COR_M, COR_M
@@ -150,12 +169,12 @@ MOV  SP, SP_inicial_principal           ; inicializa SP para a palavra a seguir
                                         ; à última da pilha
 MOV BTE, Interrupcoes
 EI0
-EI1
-EI2
+;EI1
+;EI2
 EI
 
 MOV  [APAGA_AVISO], R1                  ; apaga o aviso de nenhum cenário selecionado (o valor de R1 não é relevante)
-MOV  [APAGA_ECRÃ], R1                   ; apaga todos os pixels já desenhados (o valor de R1 não é relevante)
+MOV  [APAGA_ECRAS], R1                   ; apaga todos os pixels já desenhados (o valor de R1 não é relevante)
 MOV  R0, 0                              ; cenário de fundo número 0
 MOV  [SELECIONA_CENARIO_FUNDO], R0      ; seleciona o cenário de fundo
 
@@ -167,10 +186,16 @@ MOV [R0], R1                            ; reset display
 
 MOV R0, Rover 
 CALL write_something                    ; inicializa o rover
-MOV R0, Meteor0
-CALL write_something                    ; inicializa o meteoro
+
 CALL P_teclado							; inicializa processo que gere o teclado
 CALL P_rover							; inicializa processo do movimento do rover
+
+MOV R1, 3
+gera_meteoros:							; Desenha os quatro meteoros no ecrã
+	CALL cria_meteoro
+	CALL atraso_longo
+	SUB R1, 1
+	JNN gera_meteoros
 
 waiting:
 	WAIT
@@ -359,6 +384,74 @@ next:
 
 ; **********************************************************************
 
+; cria_meteoro - Gera um novo meteoro no topo do ecrã.
+; Argumentos:	R1 - Número identificador do meteoro a gerar.
+;
+; **********************************************************************
+
+cria_meteoro:
+	PUSH R0
+	PUSH R1
+	PUSH R2
+	PUSH R10
+
+	MOV R2, R1
+	ADD R2, 1							; Número do ecrã a ser utilizado
+	MOV [SELECIONA_ECRA], R2			; Seleciona o ecrã em que vai ser colocado o meteoro
+	MOV [APAGA_ECRA], R2				; Apaga o meteoro antigo (caso este exista)
+	MOV R0, Meteor0
+	MOV R2, 12
+	MUL R1, R2							; Cada meteoro ocupa 12 bytes
+	ADD R0, R1							; Passa para o endereço do meteoro certo
+
+	CALL gera_aleatorio
+	CMP R10, 2							; Se R10 = 0 ou 1, o meteoro é bom (~25% de chance)
+	JLT meteoro_bom
+	MOV R2, Mm_sprite0
+	MOV [R0 + 8], R2					; Seleciona sprite do meteoro mau
+	MOV R2, 0
+	MOV [R0 + 10], R2					; Define o meteoro como mau
+meteoro_bom:
+	MOV R2, Mb_sprite0
+	MOV [R0 + 8], R2					; Seleciona sprite do meteoro bom
+	MOV R2, 1
+	MOV [R0 + 10], R2					; Define o meteoro como bom
+	
+	CALL gera_aleatorio
+	SHL R10, 3							; Multiplica por 8
+	ADD R10, 3							; Coluna do novo meteoro
+	MOV [R0 + 6], R10
+	MOV R2, 1
+	MOV [R0], R2						; Repõe altura do meteoro
+	MOV [R0 + 2], R2					; Repõe largura do meteoro
+	MOV R2, 0
+	MOV [R0 + 4], R2					; Repõe linha do meteoro
+	CALL write_something						; Desenha novo meteoro
+	
+	MOV [SELECIONA_ECRA], R2			; Repõe ecrã selecionado
+	POP R10
+	POP R2
+	POP R1
+	POP R0
+	RET
+
+
+; **********************************************************************
+
+; gera_aleatorio - Gera um número "aleatório" entre 0 a 7 recorrendo à
+;	leitura de um periférico. Coloca este número no registo R10.
+; Argumentos:	Nenhum
+;
+; **********************************************************************
+
+gera_aleatorio:
+	MOV R10, TEC_COL
+	SHR R10, 5							; Elimina bits não aleatórios ficando só os bits 7-5
+	RET
+
+
+; **********************************************************************
+
 ; converte_tecla - Converte uma posição not teclado para a sua tecla
 ;	correspondente. Coloca o valor da tecla no registo R6.
 ; Argumentos:   R0 - Coluna
@@ -482,6 +575,25 @@ ciclo_atraso:
     JNZ ciclo_atraso
     POP R11
     RET
+
+; **********************************************************************
+
+; atraso_longo - atraso mais comprido
+; Argumentos:  None
+;
+; **********************************************************************
+
+atraso_longo:
+    PUSH    R11
+    MOV     R11,  0010H
+ciclo_atraso_longo:
+    SUB R11, 1
+	YIELD								; Esta rotina é demorada por isso é incluído um ponto de fuga
+	CALL atraso
+    JNZ ciclo_atraso_longo
+    POP R11
+    RET
+
 
 ; **********************************************************************
 
@@ -663,27 +775,27 @@ escreve_pixel:
     RET
 
 ; | ------------------------------------------------------------------ |
-; | ------------------------- Interrupcoes --------------------------- |
+; | ------------------------- Interrupções --------------------------- |
 ; | ------------------------------------------------------------------ |
 
 
 int_missile:
     PUSH R0
     MOV R0, 1
-    MOV [missle_lock], 1
+    MOV [missile_lock], R0
     POP R0
     RFE
     
 int_meteor:
     PUSH R0
     MOV R0, 1
-    MOV [meteor_lock], 1
+    MOV [meteor_lock], R0
     POP R0
     RFE
 
 int_energy:
     PUSH R0
     MOV R0, 1
-    MOV [energy_lock], 1
+    MOV [energy_lock], R0
     POP R0
     RFE
