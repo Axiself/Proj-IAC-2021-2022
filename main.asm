@@ -98,6 +98,12 @@ tecla_pressionada:
 	LOCK 0
 tecla_continua:
 	LOCK 0
+meteor_lock:
+    LOCK 0
+missile_lock:
+    LOCK 0
+energy_lock: 
+    LOCK 0
 
 ; Figuras
 Rover: WORD ALTURA, LARGURA, LINHA, COLUNA, R_sprite
@@ -138,7 +144,12 @@ PLACE 0H
 
 MOV  SP, SP_inicial_principal           ; inicializa SP para a palavra a seguir
                                         ; à última da pilha
-                            
+MOV BTE, Interrupcoes
+EI0
+EI1
+EI2
+EI
+
 MOV  [APAGA_AVISO], R1                  ; apaga o aviso de nenhum cenário selecionado (o valor de R1 não é relevante)
 MOV  [APAGA_ECRÃ], R1                   ; apaga todos os pixels já desenhados (o valor de R1 não é relevante)
 MOV  R0, 0                              ; cenário de fundo número 0
@@ -646,3 +657,29 @@ escreve_pixel:
     MOV  [DEFINE_COLUNA], R2            ; seleciona a coluna
     MOV  [DEFINE_PIXEL], R3             ; altera a cor do pixel na linha e coluna já selecionadas
     RET
+
+; | ------------------------------------------------------------------ |
+; | ------------------------- Interrupcoes --------------------------- |
+; | ------------------------------------------------------------------ |
+
+
+int_missile:
+    PUSH R0
+    MOV R0, 1
+    MOV [missle_lock], 1
+    POP R0
+    RFE
+    
+int_meteor:
+    PUSH R0
+    MOV R0, 1
+    MOV [meteor_lock], 1
+    POP R0
+    RFE
+
+int_energy:
+    PUSH R0
+    MOV R0, 1
+    MOV [energy_lock], 1
+    POP R0
+    RFE
