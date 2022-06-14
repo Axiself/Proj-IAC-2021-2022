@@ -184,11 +184,11 @@ MOV R0, DISPLAYS
 MOV  R1, 0
 MOV [R0], R1                            ; reset display
 
-MOV R0, Rover 
-CALL write_something                    ; inicializa o rover
-
 CALL P_teclado							; inicializa processo que gere o teclado
 CALL P_rover							; inicializa processo do movimento do rover
+
+MOV R0, Rover 
+CALL write_something                    ; inicializa o rover
 
 MOV R1, 3
 gera_meteoros:							; Desenha os quatro meteoros no ecrã
@@ -196,6 +196,7 @@ gera_meteoros:							; Desenha os quatro meteoros no ecrã
 	CALL atraso_longo
 	SUB R1, 1
 	JNN gera_meteoros
+
 
 waiting:
 	WAIT
@@ -390,6 +391,7 @@ next:
 ; **********************************************************************
 
 cria_meteoro:
+
 	PUSH R0
 	PUSH R1
 	PUSH R2
@@ -445,8 +447,14 @@ meteoro_bom:
 ; **********************************************************************
 
 gera_aleatorio:
-	MOV R10, TEC_COL
+
+	PUSH R2
+	MOV R10, [TEC_COL]
 	SHR R10, 5							; Elimina bits não aleatórios ficando só os bits 7-5
+	MOV R2, 7
+	AND R10, R2							; Máscara para ficarem apenas os 3 primeiros bits
+
+	POP R2
 	RET
 
 
@@ -568,11 +576,14 @@ end5:
 ; **********************************************************************
 
 atraso:
+
     PUSH    R11
+
     MOV     R11,  4000H
 ciclo_atraso:
     SUB R11, 1
     JNZ ciclo_atraso
+
     POP R11
     RET
 
@@ -584,13 +595,16 @@ ciclo_atraso:
 ; **********************************************************************
 
 atraso_longo:
+
     PUSH    R11
-    MOV     R11,  0010H
+
+    MOV     R11,  0030H
 ciclo_atraso_longo:
-    SUB R11, 1
 	YIELD								; Esta rotina é demorada por isso é incluído um ponto de fuga
 	CALL atraso
+    SUB R11, 1
     JNZ ciclo_atraso_longo
+
     POP R11
     RET
 
