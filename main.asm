@@ -184,11 +184,11 @@ MOV R0, DISPLAYS
 MOV  R1, 0
 MOV [R0], R1                            ; reset display
 
-CALL P_teclado							; inicializa processo que gere o teclado
-CALL P_rover							; inicializa processo do movimento do rover
-
 MOV R0, Rover 
 CALL write_something                    ; inicializa o rover
+
+CALL P_teclado							; inicializa processo que gere o teclado
+CALL P_rover							; inicializa processo do movimento do rover
 
 MOV R1, 3
 gera_meteoros:							; Desenha os quatro meteoros no ecrã
