@@ -159,6 +159,7 @@ Mm_tab:
 	WORD Mm_sprite1
 	WORD Mm_sprite2
 	WORD Mm_sprite3
+	WORD Mm_sprite4
 
 Mm_sprite0: WORD COR_CINZENTO
 Mm_sprite1: WORD COR_CINZENTO, COR_CINZENTO
@@ -182,22 +183,23 @@ Mb_tab:
 	WORD Mb_sprite1
 	WORD Mb_sprite2
 	WORD Mb_sprite3
+	WORD Mb_sprite4
 
 Mb_sprite0: WORD COR_CINZENTO
 Mb_sprite1: WORD COR_CINZENTO, COR_CINZENTO
 		WORD COR_CINZENTO, COR_CINZENTO
-Mb_sprite2: WORD 0, COR_M, COR_M
-		WORD COR_M, COR_M, 0
-		WORD 0, COR_M, COR_M
-Mb_sprite3: WORD 0, COR_M, COR_M, COR_M
-		WORD COR_M, COR_M, 0, 0
-		WORD COR_M, COR_M, COR_M, COR_M
-		WORD 0, COR_M, 0, COR_M
-Mb_sprite4: WORD 0, COR_M,  COR_M,  COR_M, COR_M
-		WORD COR_M, COR_M, COR_M, 0, 0
-		WORD COR_M, COR_M, COR_M, COR_M, COR_M
-		WORD COR_M, COR_M, COR_M, COR_M, COR_M
-		WORD 0, COR_M, 0, 0, COR_M
+Mb_sprite2: WORD 0, COR_E, COR_E
+		WORD COR_E, COR_E, 0
+		WORD 0, COR_E, COR_E
+Mb_sprite3: WORD 0, COR_E, COR_E, COR_E
+		WORD COR_E, COR_E, 0, 0
+		WORD COR_E, COR_E, COR_E, COR_E
+		WORD 0, COR_E, 0, COR_E
+Mb_sprite4: WORD 0, COR_E,  COR_E,  COR_E, COR_E
+		WORD COR_E, COR_E, COR_E, 0, 0
+		WORD COR_E, COR_E, COR_E, COR_E, COR_E
+		WORD COR_E, COR_E, COR_E, COR_E, COR_E
+		WORD 0, COR_E, 0, 0, COR_E
 
 
 ; | ------------------------------------------------------------------ |
@@ -387,10 +389,10 @@ PROCESS SP_inicial_meteoro0
 P_meteors:
 	MOV R10, R1							; Cópia do número de instância
 	SHL R10, 1							; Tabela dos SPs é uma tabela de words
-	MOV R9, SP_inicial_meteoro0
+	MOV R9, meteor_SP_tab
 	MOV SP, [R9 + R10]					; Atualiza stack do processo para a stack da instância atual
 
-	MOV R8, Meteor0
+	MOV R0, Meteor0
 	MOV R10, R1							; Cópia do número de instância
 	MOV R2, 12
 	MUL R10, R2							; Cada meteoro tem 6 words
@@ -508,11 +510,12 @@ colision_check:
 	JGT colided
 
 	MOV R5, [Missile + 6]				; Checks if a missile has been fired
+	CMP R5, 0
 	JZ check_rover_colision
 
 	MOV R5, [Missile]					; Linha em que está o míssil
 	CMP R3, R5							; Se o meteoro está acima do míssil não há colisão
-	JGT check_rover_colision
+	JLT check_rover_colision
 
 	MOV R5, [Missile + 2]				; Coluna em que está o míssil
 	CMP R4, R5							; Se o meteoro está à esquerda do míssil não há colisão
@@ -524,7 +527,7 @@ colision_check:
 
 check_rover_colision:
 	MOV R5, LINHA_MAX_ECRA
-	MOV R6, Rover
+	MOV R6, [Rover]
 	SUB R5, R6
 	ADD R5, 1							; Primeira linha ocupada pelo rover
 	CMP R3, R5							; Se o meteoro está acima do rover, não há colisão
@@ -589,12 +592,14 @@ cria_meteoro:
 	MOV [R0 + 8], R2					; Seleciona tabela de sprites do meteoro mau
 	MOV R2, 0
 	MOV [R0 + 10], R2					; Define o meteoro como mau
+	JMP get_column
 meteoro_bom:
 	MOV R2, Mb_tab
 	MOV [R0 + 8], R2					; Seleciona tabela de sprites do meteoro bom
 	MOV R2, 1
 	MOV [R0 + 10], R2					; Define o meteoro como bom
 	
+get_column:
 	CALL gera_aleatorio
 	SHL R10, 3							; Multiplica por 8
 	ADD R10, 3							; Coluna do novo meteoro
