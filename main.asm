@@ -84,7 +84,17 @@ STACK 100H
 SP_inicial_rover:
 
 STACK 100H
-SP_Missile:
+SP_inicial_missil:
+
+; Stacks para as várias instâncias do processo dos meteoros
+STACK 100H
+SP_inicial_meteoro0:
+STACK 100H
+SP_inicial_meteoro1:
+STACK 100H
+SP_inicial_meteoro2:
+STACK 100H
+SP_inicial_meteoro3:
 
 
 Linha:
@@ -112,9 +122,17 @@ missile_lock:                           ;0- doesnt exist, 1-exists, 2-exists and
 energy_lock: 
     LOCK 0
 
-Interrupcoes: WORD int_meteor
-              WORD int_missile
-              WORD int_energy
+Interrupcoes:
+	WORD int_meteor
+    WORD int_missile
+    WORD int_energy
+
+meteor_SP_tab:
+	WORD SP_inicial_meteoro0
+	WORD SP_inicial_meteoro1
+	WORD SP_inicial_meteoro2
+	WORD SP_inicial_meteoro3
+	
 
 ; Figuras
 Rover: WORD ALTURA, LARGURA, LINHA, COLUNA, R_sprite
@@ -123,6 +141,10 @@ Meteor0:  WORD 1, 1, 0, 0, 0, 0
 Meteor1:  WORD 1, 1, 0, 0, 0, 0
 Meteor2:  WORD 1, 1, 0, 0, 0, 0
 Meteor3:  WORD 1, 1, 0, 0, 0, 0
+
+Missile: WORD 0, 0     					; Linha, Coluna
+         WORD MISSILE_RANGE       		; movimentos restantes (ate desaparecer)
+         WORD 0        					; 0- doesnt exist, 1- exists 
 
 ; Sprites
 R_sprite: WORD COR_F, 0, COR_F
@@ -162,9 +184,6 @@ Mb_sprite4: WORD 0, COR_M,  COR_M,  COR_M, COR_M
 		WORD COR_M, COR_M, COR_M, COR_M, COR_M
 		WORD 0, COR_M, 0, 0, COR_M
 
-Missile: WORD 0, 0     ;Linha, Coluna
-         WORD MISSILE_RANGE       ;movimentos restantes (ate desaparecer)
-         WORD 0        ;0- doesnt exist, 1- exists 
 
 ; | ------------------------------------------------------------------ |
 ; | ----------------------------- Código ----------------------------- |
@@ -200,9 +219,8 @@ CALL P_rover							; inicializa processo do movimento do rover
 CALL create_missile
 
 MOV R1, 3
-gera_meteoros:							; Desenha os quatro meteoros no ecrã
-	CALL cria_meteoro
-	CALL atraso_longo
+gera_meteoros:							; Cria as quatro instâncias do processo dos meteoros
+	CALL P_meteors
 	SUB R1, 1
 	JNN gera_meteoros
 
@@ -289,7 +307,7 @@ move_rover:
 
 ; -----------------------------------------------------------------
 
-PROCESS SP_Missile
+PROCESS SP_inicial_missil
 
 create_missile:
     MOV R0, [tecla_pressionada]         ;lock
@@ -346,6 +364,36 @@ delete_missile:
     CALL escreve_pixel
     JMP create_missile
 ; -----------------------------------------------------------------
+
+; Argurmentos: R1 - Número da instância do processo.
+
+PROCESS SP_inicial_meteoro0
+
+P_meteors:
+	MOV R10, R1							; Cópia do número de instância
+	SHL R10, 1							; Tabela dos SPs é uma tabela de words
+	MOV R9, SP_inicial_meteoro0
+	MOV SP, [R9 + R10]					; Atualiza stack do processo para a stack da instância atual
+
+	MOV R2, R1
+	SHL R2, 3							; Cada meteoro vai nascer 8 interrupções após o anterior
+
+meteor_loop:
+	CMP R2, 0
+	JZ 
+	
+	
+	
+	
+
+
+	
+	
+
+	
+	
+
+	
 ;sub_counter:                            ; tecla 4
 ;    MOV R2, 0
 ;    MOV [Move_flag], R2                 ; desativa a  flag para mover continuamente (so por precaucao)
@@ -572,27 +620,6 @@ ciclo_atraso:
     POP R11
     RET
 
-; **********************************************************************
-
-; atraso_longo - atraso mais comprido
-; Argumentos:  None
-;
-; **********************************************************************
-
-atraso_longo:
-
-    PUSH    R11
-
-    MOV     R11,  0030H
-ciclo_atraso_longo:
-	YIELD								; Esta rotina é demorada por isso é incluído um ponto de fuga
-	CALL atraso
-    SUB R11, 1
-    JNZ ciclo_atraso_longo
-
-    POP R11
-    RET
-
 
 ; **********************************************************************
 
@@ -677,7 +704,7 @@ end3:
 ; Argumentos:   none (ja sabemos o endereco do meteoro)
 ;
 ; **********************************************************************
-move_meteor:
+;move_meteor:
     PUSH R0
     PUSH R1
     PUSH R2
