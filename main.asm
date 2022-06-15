@@ -84,10 +84,8 @@ STACK 100H
 SP_inicial_rover:
 
 STACK 100H
-missile_movement:
+SP_Missile:
 
-STACK 100H
-missile_creation:
 
 Linha:
 	WORD 16
@@ -199,7 +197,6 @@ CALL write_something                    ; inicializa o rover
 
 CALL P_teclado							; inicializa processo que gere o teclado
 CALL P_rover							; inicializa processo do movimento do rover
-CALL mov_missile
 CALL create_missile
 
 MOV R1, 3
@@ -289,7 +286,32 @@ move_rover:
 
 ; -----------------------------------------------------------------
 
-PROCESS missile_movement
+
+; -----------------------------------------------------------------
+
+PROCESS SP_Missile
+
+create_missile:
+    MOV R0, [tecla_pressionada]         ;lock
+    CMP R0, 7
+    JNZ create_missile
+
+    MOV R0, [Missile+6]
+    CMP R0, 1
+    JZ create_missile                   ;checks if it exists already
+    MOV R0, 1
+    MOV [Missile+6], R0
+    MOV R0, MISSILE_RANGE
+    MOV [Missile+4], R0
+
+    MOV R1, LINHA
+    SUB R1, 1
+    MOV [Missile], R1
+    MOV R2, [Rover+6]
+    ADD R2, 1
+    MOV [Missile+2], R2
+    MOV R3, COR_ROXO
+    CALL escreve_pixel
 
 mov_missile:
     MOV R0, [missile_lock]              ;locks it 
@@ -322,37 +344,8 @@ delete_missile:
     MOV R2, [Missile+2]
     MOV R3, 0H
     CALL escreve_pixel
-    JMP mov_missile
-
-; -----------------------------------------------------------------
-
-PROCESS missile_creation
-    
-create_missile:
-    MOV R0, [tecla_pressionada]         ;lock
-    CMP R0, 7
-    JNZ create_missile
-
-    MOV R0, [Missile+6]
-    CMP R0, 1
-    JZ create_missile                   ;checks if it exists already
-    MOV R0, 1
-    MOV [Missile+6], R0
-    MOV R0, MISSILE_RANGE
-    MOV [Missile+4], R0
-
-    MOV R1, LINHA
-    SUB R1, 1
-    MOV [Missile], R1
-    MOV R2, [Rover+6]
-    ADD R2, 1
-    MOV [Missile+2], R2
-    MOV R3, COR_ROXO
-    CALL escreve_pixel
     JMP create_missile
-
 ; -----------------------------------------------------------------
-
 ;sub_counter:                            ; tecla 4
 ;    MOV R2, 0
 ;    MOV [Move_flag], R2                 ; desativa a  flag para mover continuamente (so por precaucao)
