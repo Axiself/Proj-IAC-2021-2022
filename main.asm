@@ -151,10 +151,10 @@ Missile: WORD 0, 0     					; Linha, Coluna
 R_sprite: WORD COR_F, 0, COR_F
         WORD 0, COR_F, 0
         WORD COR_F, 0, COR_F
-R_tab
+R_tab:
 	WORD R_sprite
 ; Meteoros maus
-Mm_tb:
+Mm_tab:
 	WORD Mm_sprite0
 	WORD Mm_sprite1
 	WORD Mm_sprite2
@@ -177,7 +177,7 @@ Mm_sprite4: WORD 0, COR_M,  COR_M,  COR_M, COR_M
 		WORD 0, COR_M, 0, 0, COR_M
 
 ; Meteoros bons
-Mb_tb:
+Mb_tab:
 	WORD Mb_sprite0
 	WORD Mb_sprite1
 	WORD Mb_sprite2
@@ -392,7 +392,8 @@ P_meteors:
 
 	MOV R8, Meteor0
 	MOV R10, R1							; Cópia do número de instância
-	MUL R10, 12							; Cada meteoro tem 6 words
+	MOV R2, 12
+	MUL R10, R2							; Cada meteoro tem 6 words
 	ADD R0, R10							; Endereço do meteoro
 	MOV R2, R1
 	SHL R2, 3							; Cada meteoro vai nascer 8 interrupções após o anterior
@@ -444,7 +445,8 @@ draw_meteor:
 	MOV [SELECIONA_ECRA], R10			; Seleciona o ecrã em que vai movido o meteoro
 	CALL write_something				; Desenha o meteoro
 
-	MOV [SELECIONA_ECRA], 0 			; Repõe ecrã
+	MOV R11, 0
+	MOV [SELECIONA_ECRA], R11 			; Repõe ecrã
 	JMP meteor_loop
 
 
