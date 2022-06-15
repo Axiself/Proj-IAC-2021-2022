@@ -46,7 +46,8 @@ APAGA_ECRA              EQU 6000H       ; endereço do comando para apagar todos
 SELECIONA_CENARIO_FUNDO EQU 6042H       ; endereço do comando para selecionar uma imagem de fundo
 SELECIONA_MEDIA         EQU 6048H
 PLAY_MEDIA              EQU 605AH
-MAX_PIXEL 				EQU 63
+COLUNA_MAX_ECRA 		EQU 63
+LINHA_MAX_ECRA 			EQU 31
 
 ; FIGURAS 
 
@@ -135,7 +136,7 @@ meteor_SP_tab:
 	
 
 ; Figuras
-Rover: WORD ALTURA, LARGURA, LINHA, COLUNA, R_sprite
+Rover: WORD ALTURA, LARGURA, LINHA, COLUNA, R_tab
 ; Altura, Largura, Linha, Coluna, Endereço do sprite, Tipo de meteoro (bom/mau)
 Meteor0:  WORD 1, 1, 0, 0, 0, 0
 Meteor1:  WORD 1, 1, 0, 0, 0, 0
@@ -150,7 +151,15 @@ Missile: WORD 0, 0     					; Linha, Coluna
 R_sprite: WORD COR_F, 0, COR_F
         WORD 0, COR_F, 0
         WORD COR_F, 0, COR_F
+R_tab
+	WORD R_sprite
 ; Meteoros maus
+Mm_tb:
+	WORD Mm_sprite0
+	WORD Mm_sprite1
+	WORD Mm_sprite2
+	WORD Mm_sprite3
+
 Mm_sprite0: WORD COR_CINZENTO
 Mm_sprite1: WORD COR_CINZENTO, COR_CINZENTO
 		WORD COR_CINZENTO, COR_CINZENTO
@@ -168,6 +177,12 @@ Mm_sprite4: WORD 0, COR_M,  COR_M,  COR_M, COR_M
 		WORD 0, COR_M, 0, 0, COR_M
 
 ; Meteoros bons
+Mb_tb:
+	WORD Mb_sprite0
+	WORD Mb_sprite1
+	WORD Mb_sprite2
+	WORD Mb_sprite3
+
 Mb_sprite0: WORD COR_CINZENTO
 Mb_sprite1: WORD COR_CINZENTO, COR_CINZENTO
 		WORD COR_CINZENTO, COR_CINZENTO
@@ -275,7 +290,7 @@ P_rover:
 
 	MOV R0, Rover						; endereço do rover
 	MOV R4, [R0 + 2]					; largura do rover
-	MOV R3, MAX_PIXEL					; coluna de pixeis do limite direio do ecrã
+	MOV R3, COLUNA_MAX_ECRA					; coluna de pixeis do limite direio do ecrã
 	ADD R3, 1
 	SUB R3, R4		 					; posição maxima que o rover pode ocupar tendo em conta a sua largura
 
@@ -375,23 +390,64 @@ P_meteors:
 	MOV R9, SP_inicial_meteoro0
 	MOV SP, [R9 + R10]					; Atualiza stack do processo para a stack da instância atual
 
+	MOV R8, Meteor0
+	MOV R10, R1							; Cópia do número de instância
+	MUL R10, 12							; Cada meteoro tem 6 words
+	ADD R0, R10							; Endereço do meteoro
 	MOV R2, R1
 	SHL R2, 3							; Cada meteoro vai nascer 8 interrupções após o anterior
 
 meteor_loop:
+	MOV R11, [meteor_lock]				; Espera pela interrupção
+
 	CMP R2, 0
-	JZ 
-	
-	
-	
-	
+	JLT move_meteor
+	SUB R2, 1
+	JNZ meteor_loop						; Enquanto as 8 interrupções não passarem, não nasce novo meteoro
+new_meteor:
+	SUB R2, 1
+	CALL cria_meteoro					; Adiciona meteoro após um certo número de ciclos da interrupção
+	MOV R5, 4							; Número de mudanças de sprite restantes
+	MOV R3, 3							; O sprite do meteoro muda a cada 3 movimentos
+move_meteor:
+
+	MOV R4, [R0 + 4]
+	ADD R4, 1							; Aumenta linha do meteoro
+	MOV [R0 + 4], R4
+
+	CMP R5, 0
+	JZ draw_meteor						; Caso o meteoro já tenha o último sprite possível
+
+	SUB R3, 1							; Ao fim dos 3 movimentos, muda o sprite
+	JNN draw_meteor
+	MOV R4, [R0 + 8]
+	ADD R4, 2							; Passa para o proximo endereço da tabela de sprites
+	MOV [R0 + 8], R4
+	MOV R4, [R0]
+	ADD R4, 1							; Aumenta altura do meteoro
+	MOV [R0], R4
+	MOV R4, [R0 + 2]
+	ADD R4, 1							; Aumenta largura do meteoro
+	MOV [R0 + 2], R4
+
+	SUB R5, 1							; Menos uma mudança de sprite restante
+
+	MOV R3, 3							; Reseta contador de movimentos
+draw_meteor:
+	CALL colision_check
+	CMP R7, 0
+	JNZ new_meteor						; Se houver colisão, destroi o meteoro e cria um novo
+
+	MOV R10, R1							; Cópia do número de instância
+	ADD R10, 1							; Ecrã em que está o meteoro
+	MOV [APAGA_ECRA], R10
+	MOV [SELECIONA_ECRA], R10			; Seleciona o ecrã em que vai movido o meteoro
+	CALL write_something				; Desenha o meteoro
+
+	MOV [SELECIONA_ECRA], 0 			; Repõe ecrã
+	JMP meteor_loop
 
 
-	
-	
-
-	
-	
 
 	
 ;sub_counter:                            ; tecla 4
@@ -417,7 +473,92 @@ meteor_loop:
 ; | ------------------------------------------------------------------ |
 
 ; **********************************************************************
+;
+; colision_check - Verifica se um certo meteoro colide com o rover, chão
+;	ou com um míssil na sua posição atual. Retorna 1 no registo R7 caso
+;	haja colisão e 0 caso contrário.
+; Argumentos:	R0 - Endereço do meteoro em questão.
+;
+; **********************************************************************
 
+colision_check:
+    PUSH R0
+    PUSH R1
+    PUSH R2
+    PUSH R3
+    PUSH R4
+    PUSH R5
+    PUSH R6
+
+    MOV R1, [R0 + 4]                    ; Primeira linha ocupada pelo meteoro
+    MOV R2, [R0 + 6]                    ; Primeira coluna ocupada pelo meteoro
+    MOV R3, [R0]                        ; Altura
+    MOV R4, [R0 + 2]                    ; Largura
+
+	ADD R3, R1
+	SUB R3, 1							; Última linha ocupada pelo meteoro
+
+	ADD R4, R2
+	SUB R4, 1							; Última coluna ocupada pelo meteoro
+
+	MOV R5, LINHA_MAX_ECRA
+	CMP R3, R5							; Checks if the meteor has hit the ground
+	JGT colided
+
+	MOV R5, [Missile + 6]				; Checks if a missile has been fired
+	JZ check_rover_colision
+
+	MOV R5, [Missile]					; Linha em que está o míssil
+	CMP R3, R5							; Se o meteoro está acima do míssil não há colisão
+	JGT check_rover_colision
+
+	MOV R5, [Missile + 2]				; Coluna em que está o míssil
+	CMP R4, R5							; Se o meteoro está à esquerda do míssil não há colisão
+	JLT check_rover_colision
+	CMP R2, R5							; Se o meteoro está à direita do míssil não há colisão
+	JGT check_rover_colision
+
+	JMP colided
+
+check_rover_colision:
+	MOV R5, LINHA_MAX_ECRA
+	MOV R6, Rover
+	SUB R5, R6
+	ADD R5, 1							; Primeira linha ocupada pelo rover
+	CMP R3, R5							; Se o meteoro está acima do rover, não há colisão
+	JLT no_colision
+
+	MOV R5, [Rover + 2]					; Largura do rover
+	MOV R6, [Rover + 6]					; Primeira coluna ocupada pelo rover
+	ADD R5, R6
+	SUB R5, 1							; Última coluna ocupada pelo rover
+	CMP R2, R5							; Se o meteoro está à direita do rover não há colisão
+	JGT no_colision
+	CMP R4, R6							; Se o meteoro está à esquerda do rover não há colisão
+	JLT no_colision
+	
+	JMP colided
+
+colided:
+	MOV R7, 1
+	JMP end_colision_check
+no_colision:
+	MOV R7, 0
+
+end_colision_check:
+	POP R6
+	POP R5
+	POP R4
+	POP R3
+	POP R2
+	POP R1
+	POP R0
+	RET
+	
+	
+
+; **********************************************************************
+;
 ; cria_meteoro - Gera um novo meteoro no topo do ecrã.
 ; Argumentos:	R1 - Número identificador do meteoro a gerar.
 ;
@@ -442,13 +583,13 @@ cria_meteoro:
 	CALL gera_aleatorio
 	CMP R10, 2							; Se R10 = 0 ou 1, o meteoro é bom (~25% de chance)
 	JLT meteoro_bom
-	MOV R2, Mm_sprite0
-	MOV [R0 + 8], R2					; Seleciona sprite do meteoro mau
+	MOV R2, Mm_tab
+	MOV [R0 + 8], R2					; Seleciona tabela de sprites do meteoro mau
 	MOV R2, 0
 	MOV [R0 + 10], R2					; Define o meteoro como mau
 meteoro_bom:
-	MOV R2, Mb_sprite0
-	MOV [R0 + 8], R2					; Seleciona sprite do meteoro bom
+	MOV R2, Mb_tab
+	MOV [R0 + 8], R2					; Seleciona tabela de sprites do meteoro bom
 	MOV R2, 1
 	MOV [R0 + 10], R2					; Define o meteoro como bom
 	
@@ -459,7 +600,7 @@ meteoro_bom:
 	MOV R2, 1
 	MOV [R0], R2						; Repõe altura do meteoro
 	MOV [R0 + 2], R2					; Repõe largura do meteoro
-	MOV R2, 0
+	MOV R2, -1
 	MOV [R0 + 4], R2					; Repõe linha do meteoro
 	CALL write_something						; Desenha novo meteoro
 	
@@ -666,18 +807,20 @@ write_something:
     PUSH R4
     PUSH R5
     PUSH R6
+    PUSH R7
 
     MOV R1, [R0 + 4]                    ; Linha
     MOV R2, [R0 + 6]                    ; Coluna
     MOV R4, [R0]                        ; Altura
     MOV R5, [R0 + 2]                    ; Largura
     MOV R6, [R0 + 8]					; Endereço da tabela do sprite
-    MOV R3, [R6]                        ; cor do primeiro pixel
+	MOV R7, [R6]						; Endereço do sprite
+    MOV R3, [R7]                        ; cor do primeiro pixel
 prox_col2:
     CALL escreve_pixel 
     ADD R2, 1                           ; proxima coluna
-    ADD R6, 2                           ; proximo pixel
-    MOV R3, [R6]						; define cor para o proximo escreve_pixel
+    ADD R7, 2                           ; proximo pixel
+    MOV R3, [R7]						; define cor para o proximo escreve_pixel
     SUB R5, 1                           ; menos uma coluna restante
     JZ prox_lin2                        ; se acabarem as colunas
     JMP prox_col2
@@ -689,6 +832,7 @@ prox_lin2:
     JZ end3 
     JMP prox_col2
 end3:
+    POP R7
     POP R6
     POP R5
     POP R4
