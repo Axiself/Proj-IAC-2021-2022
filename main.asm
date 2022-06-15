@@ -7,7 +7,7 @@
 ; 
 ; Grupo 18:
 ; 	-> Rui Amaral: ist1103155
-; 	-> Miguel: ist1xxxxxx
+; 	-> Miguel Gomes: ist1103559
 ; 	-> JP: ist1xxxxx
 ;
 ; >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
@@ -54,11 +54,13 @@ COR_F        EQU 0F00FH
 COR_M        EQU 0FF00H
 COR_E        EQU 0F0F0H
 COR_CINZENTO EQU 0D888H
+COR_ROXO     EQU 0FF0FH
 ALTURA       EQU  3         
 LARGURA      EQU  3
 LINHA        EQU  29                    ; linha do boneco (a meio do ecrã)) (estatica)
 COLUNA       EQU  31                    ; coluna do boneco (a meio do ecrã) (inicial)
-	
+MISSILE_RANGE EQU 12	
+
 ; TECLAS
 
 TEC_ROV_ESQ 			EQU 0000H
@@ -69,7 +71,7 @@ TEC_ROV_DIR 			EQU 0002H
 ; | ----------------------------- Dados ------------------------------ |
 ; | ------------------------------------------------------------------ |
 
-PLACE 1000H
+PLACE 2000H
 
 ; Reserva de espaço para as pilhas
 STACK 100H                              ; espaço reservado para a pilha 
@@ -81,6 +83,11 @@ SP_inicial_teclado:
 STACK 100H
 SP_inicial_rover:
 
+STACK 100H
+missile_movement:
+
+STACK 100H
+missile_creation:
 
 Linha:
 	WORD 16
@@ -102,7 +109,7 @@ tecla_continua:
 	LOCK 0
 meteor_lock:
     LOCK 0
-missile_lock:
+missile_lock:                           ;0- doesnt exist, 1-exists, 2-exists and will move 
     LOCK 0
 energy_lock: 
     LOCK 0
@@ -157,6 +164,9 @@ Mb_sprite4: WORD 0, COR_M,  COR_M,  COR_M, COR_M
 		WORD COR_M, COR_M, COR_M, COR_M, COR_M
 		WORD 0, COR_M, 0, 0, COR_M
 
+Missile: WORD 0, 0     ;Linha, Coluna
+         WORD MISSILE_RANGE       ;movimentos restantes (ate desaparecer)
+         WORD 0        ;0- doesnt exist, 1- exists 
 
 ; | ------------------------------------------------------------------ |
 ; | ----------------------------- Código ----------------------------- |
@@ -169,8 +179,8 @@ MOV  SP, SP_inicial_principal           ; inicializa SP para a palavra a seguir
                                         ; à última da pilha
 MOV BTE, Interrupcoes
 EI0
-;EI1
-;EI2
+EI1
+EI2
 EI
 
 MOV  [APAGA_AVISO], R1                  ; apaga o aviso de nenhum cenário selecionado (o valor de R1 não é relevante)
@@ -189,6 +199,8 @@ CALL write_something                    ; inicializa o rover
 
 CALL P_teclado							; inicializa processo que gere o teclado
 CALL P_rover							; inicializa processo do movimento do rover
+CALL mov_missile
+CALL create_missile
 
 MOV R1, 3
 gera_meteoros:							; Desenha os quatro meteoros no ecrã
@@ -275,108 +287,88 @@ move_rover:
 	CALL atraso
 	JMP check_move_direction			; este processo nunca termina
 
-; ----------------------------------
+; -----------------------------------------------------------------
 
-    JMP move_left
+PROCESS missile_movement
 
-jump_aux:
-    JMP espera_tecla
+mov_missile:
+    MOV R0, [missile_lock]              ;locks it 
 
-
-move_left:                              ; tecla 0
-    CMP R1, 0
-    JNZ move_right
-
-    MOV R2, 1
-    MOV [Move_flag], R2                 ; ativa flag para mover repetidamente
-
-    MOV R2, [Rover + 6]                ; border check (coluna 0)
-    CMP R2, 0
-    JZ next
-
-    MOV R0, Rover
-    CALL delete_something               ; apaga o rover
-
-
-    MOV R0, [Rover + 6]                   
-    SUB R0, 1
-    MOV [Rover + 6], R0
-    MOV R0, Rover                      ; diminui a coluna
-    CALL write_something                ; escreve o rover na nova posicao
-    JMP next
-
-;move_right:                             ; tecla 2
-    CMP R1, 2
-    JNZ sub_counter
-
-    MOV [Move_flag], R1                 ; ativa a flag para mover repetidamente
-
-    MOV R1, [Rover + 6]                ; coluna
-    MOV R2, [Rover + 2]                ; largura
-    ADD R1, R2
-    SUB R1, 1
-    MOV R2, 63
-    SUB R1, R2
-    JZ next                             ; coluna + largura - maximo (63) - 1 = 0 -> end (border check)
-
-    MOV R0, Rover
-    CALL delete_something               ; apaga o rover
-
-    MOV R0, [Rover + 6]                ; aumenta a coluna 
-    ADD R0, 1
-    MOV [Rover+6], R0
-    MOV R0, Rover
-    CALL write_something                ; escreve o rover na nova posicao
-    JMP next
-
-sub_counter:                            ; tecla 4
-    MOV R2, 0
-    MOV [Move_flag], R2                 ; desativa a  flag para mover continuamente (so por precaucao)
-
-    CMP R1, 4
-    JNZ add_counter
-    MOV R1, -1
-    CALL change_counter                 ; diminui o counter (R1 e o valor incrementado ao counter)
-    JMP next
-
-add_counter:                            ; tecla 7
-    CMP R1, 7
-    JNZ move_met
-    MOV R1, 1
-    CALL change_counter                 ; aumenta o counter (R1 e o valor incrementado ao counter)
-    JMP next
-
-move_met:                               ; tecla 8 
-    MOV R0, 8 
-    CMP R1, R0
-    JNZ next
-    MOV R0, 0
-    MOV [PLAY_MEDIA], R0                ; reproduz efeito sonoro
-    MOV R0, [Meteor_exists]
-    CMP R0, 0                           ; verifica se o meteoro ainda existe 
-    JZ next
-    CALL move_meteor                    ; se sim move o para baixo
-
-next:
-
-
-;ha_tecla:                               ; neste ciclo espera-se até NENHUMA tecla estar premida
-    MOV R0, TEC_LIN
-    MOV R1, [LinhaAux]
-    MOVB [R0], R1                       ; escrever no periférico de saída (Linhas)
-
-    MOV R1, TEC_COL
-    MOVB R0, [R1]                       ; ler do periférico de entrada (colunas)
-
-    MOV R1, MASCARA
-    AND  R0, R1                         ; elimina bits para além dos bits 0-3
-    CMP  R0, 0                          ; há tecla premida?
-    JZ  jump_aux                        ; se ainda houver uma tecla premida, espera até não haver
-    MOV R0, [Move_flag]
+    MOV R0, [Missile+4]                 ;verifies movements left
     CMP R0, 0
-    JZ ha_tecla
-    CALL tecla_premida
-    JMP ha_tecla
+    JZ delete_missile
+
+    SUB R0, 1
+    MOV [Missile+4], R0                 ;updates movements left
+
+escreve_missile:
+    MOV R1, [Missile]
+    MOV R2, [Missile+2]
+    MOV R3, 0H
+    CALL escreve_pixel
+
+    MOV R1, [Missile]
+    SUB R1, 1
+    MOV [Missile], R1
+    MOV R2, [Missile+2]
+    MOV R3, COR_ROXO
+    CALL escreve_pixel
+    JMP mov_missile
+
+delete_missile:
+	MOV R1, 0
+    MOV [Missile+6], R1
+    MOV R1, [Missile]
+    MOV R2, [Missile+2]
+    MOV R3, 0H
+    CALL escreve_pixel
+    JMP mov_missile
+
+; -----------------------------------------------------------------
+
+PROCESS missile_creation
+    
+create_missile:
+    MOV R0, [tecla_pressionada]         ;lock
+    CMP R0, 7
+    JNZ create_missile
+
+    MOV R0, [Missile+6]
+    CMP R0, 1
+    JZ create_missile                   ;checks if it exists already
+    MOV R0, 1
+    MOV [Missile+6], R0
+    MOV R0, MISSILE_RANGE
+    MOV [Missile+4], R0
+
+    MOV R1, LINHA
+    SUB R1, 1
+    MOV [Missile], R1
+    MOV R2, [Rover+6]
+    ADD R2, 1
+    MOV [Missile+2], R2
+    MOV R3, COR_ROXO
+    CALL escreve_pixel
+    JMP create_missile
+
+; -----------------------------------------------------------------
+
+;sub_counter:                            ; tecla 4
+;    MOV R2, 0
+;    MOV [Move_flag], R2                 ; desativa a  flag para mover continuamente (so por precaucao)
+;
+;    CMP R1, 4
+;    JNZ add_counter
+;    MOV R1, -1
+;    CALL change_counter                 ; diminui o counter (R1 e o valor incrementado ao counter)
+;    JMP next
+
+;add_counter:                            ; tecla 7
+;    CMP R1, 7
+;    JNZ move_met
+;    MOV R1, 1
+;    CALL change_counter                 ; aumenta o counter (R1 e o valor incrementado ao counter)
+;    JMP next
 
 
 ; | ------------------------------------------------------------------ |
@@ -795,8 +787,13 @@ escreve_pixel:
 
 int_missile:
     PUSH R0
-    MOV R0, 1
-    MOV [missile_lock], R0
+
+    MOV R0, [Missile+6]       ;check if it exists
+    CMP R0, 0
+    JZ missile_doesnt_exist
+    MOV R0, 0
+    MOV [missile_lock], R0      ;unlocks process
+missile_doesnt_exist:    
     POP R0
     RFE
     
