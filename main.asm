@@ -87,6 +87,11 @@ SP_inicial_rover:
 STACK 100H
 SP_inicial_missil:
 
+STACK 100H
+SP_Energia:
+
+
+
 ; Stacks para as várias instâncias do processo dos meteoros
 STACK 100H
 SP_inicial_meteoro0:
@@ -97,7 +102,10 @@ SP_inicial_meteoro2:
 STACK 100H
 SP_inicial_meteoro3:
 
-
+Energy_counter:
+	WORD 64H                            ;(100)
+Paused_game:
+	WORD 0
 Linha:
 	WORD 16
 Tecla:
@@ -234,6 +242,7 @@ CALL write_something                    ; inicializa o rover
 CALL P_teclado							; inicializa processo que gere o teclado
 CALL P_rover							; inicializa processo do movimento do rover
 CALL create_missile
+CALL P_energia
 
 MOV R1, 3
 gera_meteoros:							; Cria as quatro instâncias do processo dos meteoros
@@ -257,6 +266,7 @@ P_teclado:
 espera_tecla:
 
 	YIELD								; ponto de fuga pois este ciclo pode ser bloqueante
+block_cycles:
 	MOV  R1, 8	 			; primeira linha a testar é a linha 4 
 verifica_linhas:                           ; neste ciclo espera-se até uma tecla ser premida
 	MOVB [R2], R1			; escrever no periférico de saída (linhas)
@@ -268,6 +278,26 @@ verifica_linhas:                           ; neste ciclo espera-se até uma tecl
 	JMP verifica_linhas					; repete para a prox linha
 converte:
 	CALL converte_tecla;				; coloca o valor da tecla premida em R6
+
+	MOV R0, [Paused_game]               ;verifica se esta pausado
+	CMP R0, 0
+	JZ unpaused 
+
+paused:
+	MOV R0, 15
+	CMP R6, R0
+	JNZ block_cycles                    ;se estiver em pausa e a tecla nao for a de pausa testa o teclado outra vez saltando o yield
+	MOV R0, 0
+	MOV [Paused_game], R0               ;unpause the game
+	EI
+	JMP espera_tecla
+
+
+unpaused:
+	MOV R0, 15
+	CMP R6, R0
+	JZ pause_game                       ;pauses the game 
+
 	MOV [tecla_pressionada], R6				; desbloqueia processos que esperam por uma tecla premida
 
 ha_tecla:
@@ -284,6 +314,11 @@ verifica_linhas2:
 	JZ espera_tecla						; quando não houver tecla a ser premida volta ao espera_tecla
 	JMP verifica_linhas2				; repete para a prox linha
 	
+pause_game:
+	DI                                  ;pausa o jogo
+	MOV R0, 1
+	MOV [Paused_game], R0
+	JMP block_cycles
 ; ----------------------------------
 
 PROCESS SP_inicial_rover
@@ -321,6 +356,53 @@ move_rover:
 
 ; -----------------------------------------------------------------
 
+PROCESS SP_Energia
+
+P_energia:
+	MOV R0, [Energy_counter] ;numero
+	MOV R1, [energy_lock]    ;a adicionar
+
+	ADD R0, R1
+	MOV R1, 100
+	CMP R0, R1
+	JGT energy_cap
+
+;	CMP R0, 0
+;	JLE game_over
+	
+	MOV [Energy_counter], R0
+
+convert_energy:
+	MOV R1, 1000             ;fator
+	MOV R2, 0                ;digito
+	MOV R3, 0                ;resultado
+	MOV R4, 10               ;auxiliar da divisao
+
+hexa_to_dec:	
+	MOD R0, R1
+	DIV R1, R4
+	MOV R2, R0
+	DIV R2, R1
+	SHL R3, 4
+	OR  R3, R2
+	CMP R1, R4
+	JGT hexa_to_dec
+
+	MOD R0, R1
+	DIV R1, R4
+	MOV R2, R0
+	DIV R2, R1
+	SHL R3, 4
+	OR  R3, R2                          ;ultimo digito
+ 
+	MOV   R0, DISPLAYS   
+    MOV   [R0], R3
+    JMP P_energia
+
+energy_cap:
+	MOV R0, 100
+	MOV [Energy_counter], R0
+	JMP convert_energy
 
 ; -----------------------------------------------------------------
 
@@ -977,7 +1059,7 @@ int_meteor:
 
 int_energy:
     PUSH R0
-    MOV R0, 1
+    MOV R0, -1
     MOV [energy_lock], R0
     POP R0
     RFE
