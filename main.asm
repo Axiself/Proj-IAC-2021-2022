@@ -67,6 +67,10 @@ MISSILE_RANGE EQU 12
 
 TEC_ROV_ESQ 			EQU 0000H
 TEC_ROV_DIR 			EQU 0002H
+TECLA_MISSIL			EQU 0007H
+TECLA_PAUSA				EQU 000DH
+TECLA_TERMINAR			EQU 000CH
+TECLA_COMECAR			EQU 000EH
 
 
 ; | ------------------------------------------------------------------ |
@@ -74,6 +78,9 @@ TEC_ROV_DIR 			EQU 0002H
 ; | ------------------------------------------------------------------ |
 
 PLACE 2000H
+
+jogo_suspendido:
+	WORD 0
 
 ; Reserva de espaço para as pilhas
 STACK 100H                              ; espaço reservado para a pilha 
@@ -89,8 +96,10 @@ STACK 100H
 SP_inicial_missil:
 
 STACK 100H
-SP_Energia:
+SP_inicial_energia:
 
+STACK 100H
+SP_inicial_gamemode:
 
 
 ; Stacks para as várias instâncias do processo dos meteoros
@@ -256,6 +265,7 @@ CALL P_teclado							; inicializa processo que gere o teclado
 CALL P_rover							; inicializa processo do movimento do rover
 CALL create_missile
 CALL P_energia
+CALL P_gamemode
 
 MOV R1, 3
 gera_meteoros:							; Cria as quatro instâncias do processo dos meteoros
@@ -263,7 +273,7 @@ gera_meteoros:							; Cria as quatro instâncias do processo dos meteoros
 	SUB R1, 1
 	JNN gera_meteoros
 
-
+DI
 waiting:
 	WAIT
 	JMP waiting							; ciclo temporario para testar processos
@@ -279,8 +289,7 @@ P_teclado:
 espera_tecla:
 
 	YIELD								; ponto de fuga pois este ciclo pode ser bloqueante
-block_cycles:
-	MOV  R1, 8	 						; primeira linha a testar é a linha 4 
+	MOV  R1, 8	 						; primeira linha a testar é a linha 4
 verifica_linhas:                        ; neste ciclo espera-se até uma tecla ser premida
 	MOVB [R2], R1						; escrever no periférico de saída (linhas)
 	MOVB R0, [R3]						; ler do periférico de entrada (colunas)
@@ -290,33 +299,12 @@ verifica_linhas:                        ; neste ciclo espera-se até uma tecla s
 	JZ espera_tecla						; espera até haver atividade no teclado
 	JMP verifica_linhas					; repete para a prox linha
 converte:
-	CALL converte_tecla;				; coloca o valor da tecla premida em R6
-
-	MOV R0, [Paused_game]               ; verifica se esta pausado
-	CMP R0, 0
-	JZ unpaused 
-
-paused:
-	MOV R0, 15
-	CMP R6, R0
-	JNZ block_cycles                    ; se estiver em pausa e a tecla nao for a de pausa testa o teclado outra vez saltando o yield
-	MOV R0, 0
-	MOV [Paused_game], R0               ; unpause the game
-	EI
-	JMP ha_tecla
-
-
-unpaused:
-	MOV R0, 15
-	CMP R6, R0
-	JZ pause_game                       ; pausa se a tecla for 15 (F)
-
+	CALL converte_tecla					; coloca o valor da tecla premida em R6
 	MOV [tecla_pressionada], R6			; desbloqueia processos que esperam por uma tecla premida
 
 ha_tecla:
 
 	YIELD								; ponto de fuga pois este ciclo pode ser bloqueante
-pause_skip:	
 	MOV  R1, 8	 			            ; primeira linha a testar é a linha 4 
 	MOV [tecla_continua], R6			; desbloqueia processos que dependem de teclas premidas continuamente
 verifica_linhas2:
@@ -325,20 +313,8 @@ verifica_linhas2:
 	AND  R0, R5			                ; elimina bits para além dos bits 0-3
 	JNZ ha_tecla;						; se há uma tecla a ser premida, espera até não haver
 	SHR R1, 1							; passa à próxima linha
-	JZ pause_aux_ha_tecla						; quando não houver tecla a ser premida volta ao espera_tecla
+	JZ espera_tecla						; quando não houver tecla a ser premida volta ao espera_tecla
 	JMP verifica_linhas2				; repete para a prox linha
-	
-pause_game:
-	DI                                  ;pausa o jogo
-	MOV R0, 1
-	MOV [Paused_game], R0
-	JMP pause_skip
-
-pause_aux_ha_tecla:
-	MOV R0, [Paused_game]
-	CMP R0, 0
-	JZ espera_tecla
-	JMP block_cycles
 
 ; ----------------------------------
 
@@ -354,6 +330,11 @@ P_rover:
 
 check_move_direction:
 	MOV R5, [tecla_continua]
+
+	MOV R8, [jogo_suspendido]
+	CMP R8, 1
+	JZ check_move_direction				; Não avança caso o jogo esteja em pausa
+
 	CMP R5, TEC_ROV_ESQ
 	JNZ move_right
 	MOV R1, -1							; valor a ser somado à posição do rover para este se mover para a esquerda
@@ -377,11 +358,15 @@ move_rover:
 
 ; -----------------------------------------------------------------
 
-PROCESS SP_Energia
+PROCESS SP_inicial_energia
 
 P_energia:
 	MOV R0, [Energy_counter] ;numero
 	MOV R1, [energy_lock]    ;a adicionar
+
+	MOV R8, [jogo_suspendido]
+	CMP R8, 1
+	JZ P_energia						; Não avança caso o jogo esteja em pausa
 
 	ADD R0, R1
 	MOV R1, 100
@@ -431,7 +416,12 @@ PROCESS SP_inicial_missil
 
 create_missile:
     MOV R0, [tecla_pressionada]         ;lock
-    CMP R0, 7
+
+	MOV R8, [jogo_suspendido]
+	CMP R8, 1
+	JZ create_missile					; Não avança caso o jogo esteja em pausa
+
+    CMP R0, TECLA_MISSIL
     JNZ create_missile
 
     MOV R0, [Missile+6]
@@ -456,6 +446,10 @@ create_missile:
 
 mov_missile:
     MOV R0, [missile_lock]              ;locks it 
+
+	MOV R8, [jogo_suspendido]
+	CMP R8, 1
+	JZ mov_missile						; Não avança caso o jogo esteja em pausa
 
     MOV R0, [Missile+4]                 ;verifies movements left
     CMP R0, 0
@@ -513,7 +507,7 @@ explode_cycle:
 
 ; -----------------------------------------------------------------
 
-; Argurmentos: R1 - Número da instância do processo.
+; Argumentos: R1 - Número da instância do processo.
 
 PROCESS SP_inicial_meteoro0
 
@@ -534,6 +528,9 @@ P_meteors:
 
 meteor_loop:
 	MOV R11, [meteor_lock]				; Espera pela interrupção
+	MOV R8, [jogo_suspendido]
+	CMP R8, 1
+	JZ meteor_loop						; Não avança caso o jogo esteja em pausa
 
 	CMP R2, 0
 	JLT move_meteor
@@ -583,6 +580,33 @@ draw_meteor:
 	MOV [SELECIONA_ECRA], R11 			; Repõe ecrã
 	JMP meteor_loop
 
+PROCESS SP_inicial_gamemode
+
+P_gamemode:
+	MOV R0, [tecla_pressionada]
+	MOV R2, TECLA_PAUSA
+	CMP R0, R2
+	JNZ game_over
+	MOV R1, [jogo_suspendido]
+	CMP R1, 0							; Verifica se o jogo está ou não pausado
+	JZ pause
+	MOV R1, 0
+	MOV [jogo_suspendido], R1			; Continua a jogo
+	JMP P_gamemode
+pause:
+	MOV R1, 1
+	MOV [jogo_suspendido], R1			; Suspende o jogo
+	JMP P_gamemode
+
+game_over:
+	MOV R2, TECLA_TERMINAR
+	CMP R0, R2
+	JNZ start_game
+
+start_game:
+	MOV R2, TECLA_COMECAR
+	CMP R0, R2
+	JNZ P_gamemode						; Ignora outros valores
 
 
 	
