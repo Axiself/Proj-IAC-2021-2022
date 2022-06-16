@@ -145,7 +145,7 @@ meteor_SP_tab:
 
 ; Figuras
 Rover: WORD ALTURA, LARGURA, LINHA, COLUNA, R_tab
-; Altura, Largura, Linha, Coluna, Endereço do sprite, Tipo de meteoro (bom/mau)
+; Altura, Largura, Linha, Coluna, Endereço do sprite, Tipo de meteoro (1 = bom; 0 = mau)
 Meteor0:  WORD 1, 1, 0, 0, 0, 0
 Meteor1:  WORD 1, 1, 0, 0, 0, 0
 Meteor2:  WORD 1, 1, 0, 0, 0, 0
@@ -587,11 +587,13 @@ colision_check:
     PUSH R4
     PUSH R5
     PUSH R6
+    PUSH R8
 
     MOV R1, [R0 + 4]                    ; Primeira linha ocupada pelo meteoro
     MOV R2, [R0 + 6]                    ; Primeira coluna ocupada pelo meteoro
     MOV R3, [R0]                        ; Altura
     MOV R4, [R0 + 2]                    ; Largura
+	MOV R8, [R0 + 10]					; Identificador de metoro (1 = bom; 0 = mau)
 
 	ADD R3, R1
 	SUB R3, 1							; Última linha ocupada pelo meteoro
@@ -617,6 +619,12 @@ colision_check:
 	CMP R2, R5							; Se o meteoro está à direita do míssil não há colisão
 	JGT check_rover_colision
 
+	MOV R5, -1
+	MOV [Missile + 4], R5				; Diz ao míssil para explodir
+
+	CMP R8, 1
+	JZ colided							; Destruição de meteoro bom não dá energia
+	MOV [energy_lock], 5				; Destruição meteoro mau dá direito a 5% de energia
 	JMP colided
 
 check_rover_colision:
@@ -636,7 +644,13 @@ check_rover_colision:
 	CMP R4, R6							; Se o meteoro está à esquerda do rover não há colisão
 	JLT no_colision
 	
+	CMP R8, 1
+	JNZ rover_dies						; Se o meteoro é mau, o jogo acaba
+	MOV [energy_lock], 10				; Colisão de metoro bom com rover dá direito a 10% de energia
 	JMP colided
+rover_dies:
+	;MOV [game_lock], 1					; Termina jogo
+	; podemos por no colision para o metoro n desaparecer idk
 
 colided:
 	MOV R7, 1
@@ -645,6 +659,7 @@ no_colision:
 	MOV R7, 0
 
 end_colision_check:
+	POP R8
 	POP R6
 	POP R5
 	POP R4
