@@ -446,7 +446,7 @@ mov_missile:
 
     MOV R0, [Missile+4]                 ;verifies movements left
     CMP R0, 0
-    JZ delete_missile
+    JLE delete_missile
 
     SUB R0, 1
     MOV [Missile+4], R0                 ;updates movements left
@@ -624,7 +624,8 @@ colision_check:
 
 	CMP R8, 1
 	JZ colided							; Destruição de meteoro bom não dá energia
-	MOV [energy_lock], 5				; Destruição meteoro mau dá direito a 5% de energia
+	MOV R5, 5
+	MOV [energy_lock], R5				; Destruição meteoro mau dá direito a 5% de energia
 	JMP colided
 
 check_rover_colision:
@@ -646,7 +647,8 @@ check_rover_colision:
 	
 	CMP R8, 1
 	JNZ rover_dies						; Se o meteoro é mau, o jogo acaba
-	MOV [energy_lock], 10				; Colisão de metoro bom com rover dá direito a 10% de energia
+	MOV R5, 10
+	MOV [energy_lock], R5				; Colisão de metoro bom com rover dá direito a 10% de energia
 	JMP colided
 rover_dies:
 	;MOV [game_lock], 1					; Termina jogo
