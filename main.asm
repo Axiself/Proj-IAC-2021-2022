@@ -56,6 +56,7 @@ COR_M        EQU 0FF00H
 COR_E        EQU 0F0F0H
 COR_CINZENTO EQU 0D888H
 COR_ROXO     EQU 0FF0FH
+COR_AZUL_CLARO EQU 0F0FFH
 ALTURA       EQU  3         
 LARGURA      EQU  3
 LINHA        EQU  29                    ; linha do boneco (a meio do ecrã)) (estatica)
@@ -155,6 +156,8 @@ Missile: WORD 0, 0     					; Linha, Coluna
          WORD MISSILE_RANGE       		; movimentos restantes (ate desaparecer)
          WORD 0        					; 0- doesnt exist, 1- exists 
 
+Explosion: WORD 5, 5, 0, 0, Ex_tab
+
 ; Sprites
 R_sprite: WORD COR_F, 0, COR_F
         WORD 0, COR_F, 0
@@ -209,6 +212,16 @@ Mb_sprite4: WORD 0, COR_E,  COR_E,  COR_E, COR_E
 		WORD COR_E, COR_E, COR_E, COR_E, COR_E
 		WORD 0, COR_E, 0, 0, COR_E
 
+; Explosao
+
+Ex_tab: WORD Ex_sprite
+
+Ex_sprite:      
+	WORD 0, COR_AZUL_CLARO, 0, COR_AZUL_CLARO, 0
+	WORD COR_AZUL_CLARO, 0, COR_AZUL_CLARO, 0, COR_AZUL_CLARO
+	WORD 0, COR_AZUL_CLARO, 0, COR_AZUL_CLARO, 0
+	WORD COR_AZUL_CLARO, 0, COR_AZUL_CLARO, 0, COR_AZUL_CLARO
+	WORD 0, COR_AZUL_CLARO, 0, COR_AZUL_CLARO, 0
 
 ; | ------------------------------------------------------------------ |
 ; | ----------------------------- Código ----------------------------- |
@@ -472,7 +485,32 @@ delete_missile:
     MOV R2, [Missile+2]
     MOV R3, 0H
     CALL escreve_pixel
+
+    MOV R0, [Missile+4]
+    CMP R0, -1
+    JZ explode_missile
+
     JMP create_missile
+
+explode_missile:
+	MOV R0, [Missile]
+	SUB R0, 2
+	MOV [Explosion+4], R0
+	MOV R0, [Missile+2]
+	SUB R0, 2
+	MOV [Explosion+6], R0
+	MOV R0, Explosion
+	CALL write_something
+	MOV R0, 6
+explode_cycle:
+	CALL atraso
+	YIELD
+	SUB R0, 1
+	JNZ explode_cycle
+	MOV R0, Explosion
+	CALL delete_something
+	JMP create_missile
+
 ; -----------------------------------------------------------------
 
 ; Argurmentos: R1 - Número da instância do processo.
@@ -621,6 +659,8 @@ colision_check:
 
 	MOV R5, -1
 	MOV [Missile + 4], R5				; Diz ao míssil para explodir
+	MOV R5, 0
+	MOV [missile_lock], R5
 
 	CMP R8, 1
 	JZ colided							; Destruição de meteoro bom não dá energia
