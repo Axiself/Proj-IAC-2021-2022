@@ -489,6 +489,7 @@ P_meteors:
 	ADD R0, R10							; Endereço do meteoro
 	MOV R2, R1
 	SHL R2, 3							; Cada meteoro vai nascer 8 interrupções após o anterior
+	ADD R2, 1
 
 meteor_loop:
 	MOV R11, [meteor_lock]				; Espera pela interrupção
@@ -654,7 +655,9 @@ end_colision_check:
 
 ; **********************************************************************
 ;
-; cria_meteoro - Gera um novo meteoro no topo do ecrã.
+; cria_meteoro - Faz um reset a um certo meteoro e escolhe uma coluna
+;	de forma "aleatória" para o colocar. Também decide se esse meteoro
+;	vai ser bom ou mau
 ; Argumentos:	R1 - Número identificador do meteoro a gerar.
 ;
 ; **********************************************************************
@@ -699,7 +702,6 @@ get_column:
 	MOV [R0 + 2], R2					; Repõe largura do meteoro
 	MOV R2, -1
 	MOV [R0 + 4], R2					; Repõe linha do meteoro
-	CALL write_something						; Desenha novo meteoro
 	
 	MOV [SELECIONA_ECRA], R2			; Repõe ecrã selecionado
 	POP R10
