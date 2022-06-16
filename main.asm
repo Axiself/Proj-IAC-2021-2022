@@ -429,6 +429,9 @@ create_missile:
     MOV R0, MISSILE_RANGE
     MOV [Missile+4], R0
 
+    MOV R1, -5
+    MOV [energy_lock], R1
+
     MOV R1, LINHA
     SUB R1, 1
     MOV [Missile], R1
@@ -1069,7 +1072,7 @@ int_meteor:
 
 int_energy:
     PUSH R0
-    MOV R0, -1
+    MOV R0, -5
     MOV [energy_lock], R0
     POP R0
     RFE
