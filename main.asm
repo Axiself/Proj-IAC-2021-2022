@@ -571,6 +571,8 @@ draw_meteor:
 PROCESS SP_inicial_gamemode
 
 P_gamemode:
+	MOV R11, 0							; R11:  1 => jogo já começou / 0 => jogo foi terminado
+gamemode_loop:
 	MOV R0, [tecla_pressionada]
 	MOV R2, TECLA_PAUSA
 	CMP R0, R2
@@ -580,16 +582,22 @@ P_gamemode:
 	JZ pause
 	MOV R1, 0
 	MOV [jogo_suspendido], R1			; Continua a jogo
-	JMP P_gamemode
+	JMP gamemode_loop
 pause:
 	MOV R1, 1
 	MOV [jogo_suspendido], R1			; Suspende o jogo
-	JMP P_gamemode
+	JMP gamemode_loop
 
 game_over:
 	MOV R2, TECLA_TERMINAR
 	CMP R0, R2
 	JNZ start_game
+
+	CMP R11, 0							; Verifica se o jogo já começou
+	JZ gamemode_loop					; Se o ainda não tiver começado, não faz nada
+
+	MOV R11, 0							; Define jogo como terminado
+
 	MOV R1, 0
 	MOV [APAGA_ECRAS], R1				; Apaga todos os ecrãs
 	CALL reset_program					; Repõe valores inciais e prepara o jogo para reiniciar
@@ -598,7 +606,13 @@ game_over:
 start_game:
 	MOV R2, TECLA_COMECAR
 	CMP R0, R2
-	JNZ P_gamemode						; Ignora outros valores
+	JNZ gamemode_loop						; Ignora outros valores
+	
+	CMP R11, 1							; Verifica se o jogo já começou
+	JZ gamemode_loop					; Se o jogo já tiver começado, não faz nada
+
+	MOV R11, 1							; Define jogo como tendo começado
+
 	MOV R0, Rover
 	MOV R1, 0
 	MOV [SELECIONA_ECRA], R1
@@ -608,7 +622,7 @@ start_game:
     MOV [R0], R5                        ; Escreve 100 no display
 	MOV R1, 0
 	MOV [jogo_suspendido], R1			; Continua a jogo
-	JMP P_gamemode
+	JMP gamemode_loop
 
 ; | ------------------------------------------------------------------ |
 ; | ---------------------------- Funções ----------------------------- |
