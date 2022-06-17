@@ -122,8 +122,6 @@ Tecla:
 	WORD 0
 Coluna:
 	WORD 0
-Counter:
-	WORD 0
 LinhaAux:
 	WORD 0
 Meteor_exists:
@@ -623,10 +621,35 @@ reset_program:
 	PUSH R0
 	PUSH R1
 
-;paused game unchanged?
+	
+	MOV R1, 64H
+	MOV [Energy_counter], R1                    
+;Paused_game unchaged?	
+	MOV R1, 16
+	MOV [Linha], R1
+	MOV R0, 0
+	MOV [Tecla], R0
+	MOV [Coluna], R0
+	MOV [LinhaAux], R0
+;Meteor_exists unchanged?
+	MOV [Move_flag], R0                    		
+	MOV [tecla_pressionada], R0
+	MOV [tecla_continua], R0
+	MOV [meteor_lock], R0
+	MOV [missile_lock], R0                          
+	MOV [energy_lock], R0 
 
+	MOV [Missil], R0
+	MOV [Missil+2], R0
+	MOV R1, MISSILE_RANGE
+	MOV [Missil+4], R1
+	MOV [Missil+6], R0
 
-
+	MOV R1, 5 
+	MOV [Explosion], R1
+	MOV [Explosion+2], R1
+	MOV [Explosion+4], R0
+	MOV [Explosion+6], R0
 
 	POP R1
 	POP R0
@@ -957,24 +980,6 @@ reset:
     MOV  R0, 16
     MOV  [Linha], R0                    ; Linha = 4 (1000) (16 /  1 000 bc SHR no inicio do ciclo)
     POP  R0
-    RET
-
-; **********************************************************************
-
-; change_counter - adiciona R1 ao contador, escreve no display e atualiza a variavel counter
-; Argumentos:   R1 - number to add
-;               
-; **********************************************************************
-change_counter:
-    PUSH  R0
-    PUSH  R1
-    MOV   R0, [Counter]
-    ADD   R0, R1                        ; adiciona
-    MOV   [Counter], R0                 ; atualiza o counter
-    MOV   R1, DISPLAYS   
-    MOV   [R1], R0                      ; write on display
-    POP   R1
-    POP   R0
     RET
 
 ; **********************************************************************
