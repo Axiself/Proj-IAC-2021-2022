@@ -422,6 +422,7 @@ PROCESS SP_inicial_missil
 
 P_missil:
     MOV R5, 5							; Ecrã onde se vai colocar o míssil
+    MOV R3, COR_ROXO					; Cor do míssil
 create_missile:
     MOV R0, [tecla_pressionada]         ;lock
 
@@ -432,13 +433,13 @@ create_missile:
     CMP R0, TECLA_MISSIL
     JNZ create_missile
 
-    MOV R0, [Missile+6]
+    MOV R0, [Missile + 6]
     CMP R0, 1
     JZ create_missile                   ;checks if it exists already
     MOV R0, 1
-    MOV [Missile+6], R0
+    MOV [Missile + 6], R0
     MOV R0, MISSILE_RANGE
-    MOV [Missile+4], R0
+    MOV [Missile + 4], R0
 
     MOV R1, -5
     MOV [energy_lock], R1
@@ -446,10 +447,9 @@ create_missile:
     MOV R1, LINHA
     SUB R1, 1
     MOV [Missile], R1
-    MOV R2, [Rover+6]
+    MOV R2, [Rover + 6]
     ADD R2, 1
-    MOV [Missile+2], R2
-    MOV R3, COR_ROXO
+    MOV [Missile + 2], R2					; Coluna do míssil
     MOV [SELECIONA_ECRA], R5
     CALL escreve_pixel
 
@@ -460,41 +460,32 @@ mov_missile:
 	CMP R8, 1
 	JZ mov_missile						; Não avança caso o jogo esteja em pausa
 
-    MOV R0, [Missile+4]                 ;verifies movements left
+    MOV R0, [Missile + 4]                 ;verifies movements left
     CMP R0, 0
     JLE delete_missile
 
     SUB R0, 1
-    MOV [Missile+4], R0                 ;updates movements left
+    MOV [Missile + 4], R0                 ;updates movements left
 
 escreve_missile:
     MOV [SELECIONA_ECRA], R5
 
-    MOV R1, [Missile]
-    MOV R2, [Missile+2]
-    MOV R3, 0H
-    CALL escreve_pixel
+	MOV [APAGA_ECRA], R5
 
     MOV R1, [Missile]
     SUB R1, 1
     MOV [Missile], R1
-    MOV R2, [Missile+2]
-    MOV R3, COR_ROXO
     CALL escreve_pixel
 
     JMP mov_missile
 
 delete_missile:
-    MOV [SELECIONA_ECRA], R5
-    
 	MOV R1, 0
-    MOV [Missile+6], R1
-    MOV R1, [Missile]
-    MOV R2, [Missile+2]
-    MOV R3, 0H
-    CALL escreve_pixel
+    MOV [Missile + 6], R1
 
-    MOV R0, [Missile+4]
+	MOV [APAGA_ECRA], R5
+
+    MOV R0, [Missile + 4]
     CMP R0, -1
     JZ explode_missile
 
@@ -505,19 +496,13 @@ explode_missile:
 
 	MOV R0, [Missile]
 	SUB R0, 2
-	MOV [Explosion+4], R0
-	MOV R0, [Missile+2]
+	MOV [Explosion + 4], R0
+	MOV R0, [Missile + 2]
 	SUB R0, 2
-	MOV [Explosion+6], R0
+	MOV [Explosion + 6], R0
 	MOV R0, Explosion
 	CALL write_something
-	MOV R0, 6
-explode_cycle:
-	CALL atraso
-	YIELD
-	SUB R0, 1
-	JNZ explode_cycle
-	MOV R0, Explosion
+	MOV R0, [meteor_lock]				; Espera pelo próximo movimento dos meteoros para apagar a explosão
     MOV [APAGA_ECRA], R5
 
 	JMP create_missile
