@@ -72,6 +72,7 @@ TECLA_PAUSA				EQU 000DH
 TECLA_TERMINAR			EQU 000CH
 TECLA_COMECAR			EQU 000EH
 
+RESET_METEORS			EQU 6969H		; Valor que desencadeio
 
 ; | ------------------------------------------------------------------ |
 ; | ----------------------------- Dados ------------------------------ |
@@ -530,6 +531,8 @@ P_meteors:
 
 meteor_loop:
 	MOV R11, [meteor_lock]				; Espera pela interrupção
+	CMP R11, RESET_METEORS
+	JZ P_meteors
 	MOV R8, [jogo_suspendido]
 	CMP R8, 1
 	JZ meteor_loop						; Não avança caso o jogo esteja em pausa
@@ -602,12 +605,14 @@ game_over:
 	MOV R2, TECLA_TERMINAR
 	CMP R0, R2
 	JNZ start_game
+	JMP P_gamemode
 
 start_game:
 	MOV R2, TECLA_COMECAR
 	CMP R0, R2
 	JNZ P_gamemode						; Ignora outros valores
-
+	MOV [meteor_lock], RESET_METEORS
+	JMP P_gamemode
 
 	
 ;sub_counter:                            ; tecla 4
