@@ -72,8 +72,8 @@ TECLA_PAUSA				EQU 000DH
 TECLA_TERMINAR			EQU 000CH
 TECLA_COMECAR			EQU 000EH
 
-RESET_METEORS			EQU 6969H		; Valor que desencadeio
-
+RESET_METEOROS			EQU 0002H		; Valor que desencadeio um reset dos meteoros
+RESET_MISSIL			EQU 0007H		; Valor que desencadeia um reset do míssil
 ; | ------------------------------------------------------------------ |
 ; | ----------------------------- Dados ------------------------------ |
 ; | ------------------------------------------------------------------ |
@@ -115,20 +115,6 @@ SP_inicial_meteoro3:
 
 Energy_counter:
 	WORD 64H                            ;(100)
-Paused_game:
-	WORD 0
-Linha:
-	WORD 16
-Tecla:
-	WORD 0
-Coluna:
-	WORD 0
-LinhaAux:
-	WORD 0
-Meteor_exists:
-	WORD 1
-Move_flag:
-	WORD 0                       		; 0 para none, 1 for left, 2 for right
 tecla_pressionada:
 	LOCK 0
 tecla_continua:
@@ -246,22 +232,13 @@ EI1
 EI2
 EI
 
+MOV R0, DISPLAYS
+MOV [R0], R0								; Limpa display
+
 MOV  [APAGA_AVISO], R1                  ; apaga o aviso de nenhum cenário selecionado (o valor de R1 não é relevante)
-MOV  [APAGA_ECRAS], R1                   ; apaga todos os pixels já desenhados (o valor de R1 não é relevante)
+MOV  [APAGA_ECRAS], R1                  ; apaga todos os pixels já desenhados (o valor de R1 não é relevante)
 MOV  R0, 0                              ; cenário de fundo número 0
 MOV  [SELECIONA_CENARIO_FUNDO], R0      ; seleciona o cenário de fundo
-
-
-
-MOV R0, DISPLAYS
-MOV  R1, 0
-MOV [R0], R1                            ; reset display
-
-MOV R3, 0
-MOV [SELECIONA_ECRA], R3
-
-MOV R0, Rover 
-CALL write_something                    ; inicializa o rover
 
 CALL P_teclado							; inicializa processo que gere o teclado
 CALL P_rover							; inicializa processo do movimento do rover
@@ -274,6 +251,9 @@ gera_meteoros:							; Cria as quatro instâncias do processo dos meteoros
 	CALL P_meteors
 	SUB R1, 1
 	JNN gera_meteoros
+
+MOV R0, 1
+MOV [jogo_suspendido], R0				; Coloca o jogo em pausa, à espera da indicação para começar
 
 waiting:
 	WAIT
@@ -378,8 +358,8 @@ P_energia:
 	CMP R0, R1
 	JGT energy_cap                      ;verifica se passa do maximo
 
-;	CMP R0, 0
-;	JLE game_over                       ;verifica se passa do minimo 
+	CMP R0, 0
+	JZ no_energy
 	
 	MOV [Energy_counter], R0            ;da update ao valor do contador na memoria
 
@@ -406,14 +386,22 @@ hexa_to_dec:
 	SHL R3, 4
 	OR  R3, R2                          ;ultimo digito
  
-	MOV   R0, DISPLAYS   			
-    MOV   [R0], R3                      ;escreve o valor no display
+	MOV R0, DISPLAYS   			
+    MOV [R0], R3                        ;escreve o valor no display
     JMP P_energia
 
 energy_cap:
 	MOV R0, 100
 	MOV [Energy_counter], R0            ;se ultrapassar o maximo, o valor fica o maximo
 	JMP convert_energy              
+
+no_energy:
+	MOV R5, TECLA_TERMINAR
+	MOV [tecla_pressionada], R5         ;verifica se passa do minimo 
+	MOV R0, DISPLAYS   			
+	MOV R5, 0
+    MOV [R0], R5                      	;escreve 000 no display
+	JMP P_energia
  
 ; -----------------------------------------------------------------
 
@@ -451,12 +439,14 @@ create_missile:
 
 mov_missile:
     MOV R0, [missile_lock]              ;da lock ao processo (lock ativo apenas quando o missil existe)
+	CMP R0, RESET_MISSIL
+	JZ create_missile					; Volta para o ínicio do processo caso o jogo acabe
 
 	MOV R8, [jogo_suspendido]
 	CMP R8, 1
 	JZ mov_missile						; Não avança caso o jogo esteja em pausa
 
-    MOV R0, [Missile + 4]               ;verifica se tem movientos restantes
+    MOV R0, [Missile + 4]               ;verifica se tem movimentos restantes
     CMP R0, 0
     JLE delete_missile
 
@@ -526,7 +516,7 @@ P_meteors:
 
 meteor_loop:
 	MOV R11, [meteor_lock]				; Espera pela interrupção
-	CMP R11, RESET_METEORS
+	CMP R11, RESET_METEOROS
 	JZ P_meteors
 	MOV R8, [jogo_suspendido]
 	CMP R8, 1
@@ -600,13 +590,24 @@ game_over:
 	MOV R2, TECLA_TERMINAR
 	CMP R0, R2
 	JNZ start_game
-	JMP P_gamemode
+	MOV R1, 0
+	MOV [APAGA_ECRAS], R1				; Apaga todos os ecrãs
+	CALL reset_program					; Repõe valores inciais e prepara o jogo para reiniciar
+	JMP pause
 
 start_game:
 	MOV R2, TECLA_COMECAR
 	CMP R0, R2
 	JNZ P_gamemode						; Ignora outros valores
-	MOV [meteor_lock], RESET_METEORS
+	MOV R0, Rover
+	MOV R1, 0
+	MOV [SELECIONA_ECRA], R1
+	CALL write_something
+	MOV R0, DISPLAYS   			
+	MOV R5, 100H
+    MOV [R0], R5                        ; Escreve 100 no display
+	MOV R1, 0
+	MOV [jogo_suspendido], R1			; Continua a jogo
 	JMP P_gamemode
 
 ; | ------------------------------------------------------------------ |
@@ -624,42 +625,26 @@ start_game:
 
 reset_program:
 	PUSH R0
-	PUSH R1
 
-	
-	MOV R1, 64H
-	MOV [Energy_counter], R1                    
-;Paused_game unchaged?	
-	MOV R1, 16
-	MOV [Linha], R1
+	MOV R0, 64H							; = 100
+	MOV [Energy_counter], R0
+
 	MOV R0, 0
-	MOV [Tecla], R0
-	MOV [Coluna], R0
-	MOV [LinhaAux], R0
-;Meteor_exists unchanged?
-	MOV [Move_flag], R0                    		
-	MOV [tecla_pressionada], R0
-	MOV [tecla_continua], R0
+
+	MOV [Missile], R0
+	MOV [Missile + 2], R0
+	MOV [Missile + 6], R0
+	MOV R0, RESET_MISSIL
+	MOV [missile_lock], R0
+
+	MOV R0, RESET_METEOROS
 	MOV [meteor_lock], R0
-	MOV [missile_lock], R0                          
-	MOV [energy_lock], R0 
 
-	MOV [Missil], R0
-	MOV [Missil+2], R0
-	MOV R1, MISSILE_RANGE
-	MOV [Missil+4], R1
-	MOV [Missil+6], R0
+	MOV R0, COLUNA
+	MOV [Rover + 6], R0
 
-	MOV R1, 5 
-	MOV [Explosion], R1
-	MOV [Explosion+2], R1
-	MOV [Explosion+4], R0
-	MOV [Explosion+6], R0
-
-	POP R1
 	POP R0
 	RET
-
 
 ; **********************************************************************
 ;
@@ -744,8 +729,8 @@ check_rover_colision:
 	MOV [energy_lock], R5				; Colisão de metoro bom com rover dá direito a 10% de energia
 	JMP colided
 rover_dies:
-	;MOV [game_lock], 1					; Termina jogo
-	; podemos por no colision para o metoro n desaparecer idk
+	MOV R0, TECLA_TERMINAR
+	MOV [tecla_pressionada], R0			; Termina jogo
 
 colided:
 	MOV R7, 1
@@ -886,73 +871,6 @@ converte_linha:
 	POP R0
 	RET
 
-; **********************************************************************
-
-; tecla premida - move figura para quando a tecla continua premida
-; Argumentos:   R0 - 1 quando move para a esquerda e 2 para a direita
-;
-; **********************************************************************
-
-tecla_premida:
-    PUSH R0
-    PUSH R1
-    PUSH R2
-    PUSH R3
-    PUSH R4
-    PUSH R5
-
-    MOV R0, [Move_flag]
-    CMP R0, 1
-    JZ left
-    JMP right                           ; seleciona a direcao do movimento
-
-left:
-    MOV R2, [Rover + 6]                ; border check
-    CMP R2, 0
-    JZ end6
-
-    MOV R0, Rover
-    CALL delete_something
-
-
-    MOV R0, [Rover + 6]                ; menos coluna 
-    SUB R0, 1
-    MOV [Rover + 6], R0                ; atualiza a coluna da figura
-    MOV R0, Rover
-    CALL write_something
-    JMP end5
-
-right:
-    MOV R1, [Rover + 6]                ; coluna
-    MOV R2, [Rover + 2]                ; largura
-    ADD R1, R2
-    SUB R1, 1
-    MOV R2, 63
-    SUB R1, R2
-    JZ end6                             ; coluna + largura - maximo (63) - 1 = 0 -> end (border check)
-
-    MOV R0, Rover
-    CALL delete_something
-
-    MOV R0, [Rover + 6]                ; mais coluna 
-    ADD R0, 1
-    MOV [Rover + 6], R0                ; atualiza a coluna da figura
-    MOV R0, Rover
-    CALL write_something
-    JMP end5
-
-end6:                                   ; quando chega ao final, desativa a flag de mover
-    MOV R1, 0
-    MOV [Move_flag], R1
-end5:
-    CALL atraso                         ; atrasa o movimento
-    POP R5
-    POP R4
-    POP R3
-    POP R2
-    POP R1
-    POP R0
-    RET
 
 ; **********************************************************************
 
@@ -973,19 +891,6 @@ ciclo_atraso:
     POP R11
     RET
 
-
-; **********************************************************************
-
-; reset - resets linha (scan do teclado)
-; Argumentos:   None
-;               
-; **********************************************************************
-reset:
-    PUSH R0
-    MOV  R0, 16
-    MOV  [Linha], R0                    ; Linha = 4 (1000) (16 /  1 000 bc SHR no inicio do ciclo)
-    POP  R0
-    RET
 
 ; **********************************************************************
 
@@ -1097,13 +1002,8 @@ escreve_pixel:
 
 int_missile:
     PUSH R0
-
-    MOV R0, [Missile+6]       ;check if it exists
-    CMP R0, 0
-    JZ missile_doesnt_exist
     MOV R0, 0
     MOV [missile_lock], R0      ;unlocks process
-missile_doesnt_exist:    
     POP R0
     RFE
     
