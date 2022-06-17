@@ -123,8 +123,6 @@ Tecla:
 	WORD 0
 Coluna:
 	WORD 0
-Counter:
-	WORD 0
 LinhaAux:
 	WORD 0
 Meteor_exists:
@@ -164,7 +162,7 @@ Meteor3:  WORD 1, 1, 0, 0, 0, 0
 
 Missile: WORD 0, 0     					; Linha, Coluna
          WORD MISSILE_RANGE       		; movimentos restantes (ate desaparecer)
-         WORD 0        					; 0- doesnt exist, 1- exists 
+         WORD 0        					; 0- doesnt exist, 1- exists, -1- exploded
 
 Explosion: WORD 5, 5, 0, 0, Ex_tab
 
@@ -368,28 +366,28 @@ move_rover:
 PROCESS SP_inicial_energia
 
 P_energia:
-	MOV R0, [Energy_counter] ;numero
-	MOV R1, [energy_lock]    ;a adicionar
+	MOV R0, [Energy_counter]            ;contador
+	MOV R1, [energy_lock]               ;valor a adicionar
 
 	MOV R8, [jogo_suspendido]
 	CMP R8, 1
 	JZ P_energia						; Não avança caso o jogo esteja em pausa
 
 	ADD R0, R1
-	MOV R1, 100
+	MOV R1, 100                         ;adiciona o valor ao contador
 	CMP R0, R1
-	JGT energy_cap
+	JGT energy_cap                      ;verifica se passa do maximo
 
 ;	CMP R0, 0
-;	JLE game_over
+;	JLE game_over                       ;verifica se passa do minimo 
 	
-	MOV [Energy_counter], R0
+	MOV [Energy_counter], R0            ;da update ao valor do contador na memoria
 
 convert_energy:
-	MOV R1, 1000             ;fator
-	MOV R2, 0                ;digito
-	MOV R3, 0                ;resultado
-	MOV R4, 10               ;auxiliar da divisao
+	MOV R1, 1000            			;fator
+	MOV R2, 0                			;digito
+	MOV R3, 0                			;resultado
+	MOV R4, 10              		    ;auxiliar da divisao
 
 hexa_to_dec:	
 	MOD R0, R1
@@ -399,7 +397,7 @@ hexa_to_dec:
 	SHL R3, 4
 	OR  R3, R2
 	CMP R1, R4
-	JGT hexa_to_dec
+	JGT hexa_to_dec                     ;converte para digitos decimais (excepto ultimo digito)
 
 	MOD R0, R1
 	DIV R1, R4
@@ -408,15 +406,15 @@ hexa_to_dec:
 	SHL R3, 4
 	OR  R3, R2                          ;ultimo digito
  
-	MOV   R0, DISPLAYS   
-    MOV   [R0], R3
+	MOV   R0, DISPLAYS   			
+    MOV   [R0], R3                      ;escreve o valor no display
     JMP P_energia
 
 energy_cap:
 	MOV R0, 100
-	MOV [Energy_counter], R0
-	JMP convert_energy
-
+	MOV [Energy_counter], R0            ;se ultrapassar o maximo, o valor fica o maximo
+	JMP convert_energy              
+ 
 ; -----------------------------------------------------------------
 
 PROCESS SP_inicial_missil
@@ -432,63 +430,60 @@ create_missile:
 	JZ create_missile					; Não avança caso o jogo esteja em pausa
 
     CMP R0, TECLA_MISSIL
-    JNZ create_missile
-
-    MOV R0, [Missile + 6]
-    CMP R0, 1
-    JZ create_missile                   ;checks if it exists already
+    JNZ create_missile                  ;se nao for a tecla pretendida da lock no processo
+ 
     MOV R0, 1
-    MOV [Missile + 6], R0
+    MOV [Missile + 6], R0               ;missil existe 
     MOV R0, MISSILE_RANGE
-    MOV [Missile + 4], R0
+    MOV [Missile + 4], R0               ;movimentos do missil = alcance
 
     MOV R1, -5
-    MOV [energy_lock], R1
+    MOV [energy_lock], R1               ;diminui a energia
 
     MOV R1, LINHA
     SUB R1, 1
-    MOV [Missile], R1
+    MOV [Missile], R1                   ;linha do missil e a anterior ao rover
     MOV R2, [Rover + 6]
     ADD R2, 1
-    MOV [Missile + 2], R2					; Coluna do míssil
+    MOV [Missile + 2], R2				;coluna do missil e uma depois do rover (para ficar centrado)
     MOV [SELECIONA_ECRA], R5
-    CALL escreve_pixel
+    CALL escreve_pixel                  ;desenha o pixel
 
 mov_missile:
-    MOV R0, [missile_lock]              ;locks it 
+    MOV R0, [missile_lock]              ;da lock ao processo (lock ativo apenas quando o missil existe)
 
 	MOV R8, [jogo_suspendido]
 	CMP R8, 1
 	JZ mov_missile						; Não avança caso o jogo esteja em pausa
 
-    MOV R0, [Missile + 4]                 ;verifies movements left
+    MOV R0, [Missile + 4]               ;verifica se tem movientos restantes
     CMP R0, 0
     JLE delete_missile
 
     SUB R0, 1
-    MOV [Missile + 4], R0                 ;updates movements left
+    MOV [Missile + 4], R0              	;-1 movimento
 
 escreve_missile:
     MOV [SELECIONA_ECRA], R5
 
-	MOV [APAGA_ECRA], R5
+	MOV [APAGA_ECRA], R5                ;apaga o missil
 
     MOV R1, [Missile]
-    SUB R1, 1
-    MOV [Missile], R1
-    CALL escreve_pixel
+    SUB R1, 1                           
+    MOV [Missile], R1                   ;nova linha do missil (coluna e cor definidas anteriormente)
+    CALL escreve_pixel                
 
     JMP mov_missile
 
 delete_missile:
 	MOV R1, 0
-    MOV [Missile + 6], R1
+    MOV [Missile + 6], R1               ;missil deixa de existir
 
-	MOV [APAGA_ECRA], R5
+	MOV [APAGA_ECRA], R5                ;e apagado
 
     MOV R0, [Missile + 4]
     CMP R0, -1
-    JZ explode_missile
+    JZ explode_missile                  ;se nao explodir apenas volta ao principio
 
     JMP create_missile
 
@@ -497,10 +492,10 @@ explode_missile:
 
 	MOV R0, [Missile]
 	SUB R0, 2
-	MOV [Explosion + 4], R0
+	MOV [Explosion + 4], R0             
 	MOV R0, [Missile + 2]
 	SUB R0, 2
-	MOV [Explosion + 6], R0
+	MOV [Explosion + 6], R0             ;linha e coluna sao a do missil -2 para ficar centrado (5x5 com o missil no meio)
 	MOV R0, Explosion
 	CALL write_something
 	MOV R0, [meteor_lock]				; Espera pelo próximo movimento dos meteoros para apagar a explosão
@@ -614,28 +609,57 @@ start_game:
 	MOV [meteor_lock], RESET_METEORS
 	JMP P_gamemode
 
-	
-;sub_counter:                            ; tecla 4
-;    MOV R2, 0
-;    MOV [Move_flag], R2                 ; desativa a  flag para mover continuamente (so por precaucao)
-;
-;    CMP R1, 4
-;    JNZ add_counter
-;    MOV R1, -1
-;    CALL change_counter                 ; diminui o counter (R1 e o valor incrementado ao counter)
-;    JMP next
-
-;add_counter:                            ; tecla 7
-;    CMP R1, 7
-;    JNZ move_met
-;    MOV R1, 1
-;    CALL change_counter                 ; aumenta o counter (R1 e o valor incrementado ao counter)
-;    JMP next
-
-
 ; | ------------------------------------------------------------------ |
 ; | ---------------------------- Funções ----------------------------- |
 ; | ------------------------------------------------------------------ |
+
+; **********************************************************************
+;
+; reset_program - Da reset aos word de estado / posicao do programa
+;	
+;	WIP
+; Argumentos:	N/A
+;
+; **********************************************************************
+
+reset_program:
+	PUSH R0
+	PUSH R1
+
+	
+	MOV R1, 64H
+	MOV [Energy_counter], R1                    
+;Paused_game unchaged?	
+	MOV R1, 16
+	MOV [Linha], R1
+	MOV R0, 0
+	MOV [Tecla], R0
+	MOV [Coluna], R0
+	MOV [LinhaAux], R0
+;Meteor_exists unchanged?
+	MOV [Move_flag], R0                    		
+	MOV [tecla_pressionada], R0
+	MOV [tecla_continua], R0
+	MOV [meteor_lock], R0
+	MOV [missile_lock], R0                          
+	MOV [energy_lock], R0 
+
+	MOV [Missil], R0
+	MOV [Missil+2], R0
+	MOV R1, MISSILE_RANGE
+	MOV [Missil+4], R1
+	MOV [Missil+6], R0
+
+	MOV R1, 5 
+	MOV [Explosion], R1
+	MOV [Explosion+2], R1
+	MOV [Explosion+4], R0
+	MOV [Explosion+6], R0
+
+	POP R1
+	POP R0
+	RET
+
 
 ; **********************************************************************
 ;
@@ -965,24 +989,6 @@ reset:
 
 ; **********************************************************************
 
-; change_counter - adiciona R1 ao contador, escreve no display e atualiza a variavel counter
-; Argumentos:   R1 - number to add
-;               
-; **********************************************************************
-change_counter:
-    PUSH  R0
-    PUSH  R1
-    MOV   R0, [Counter]
-    ADD   R0, R1                        ; adiciona
-    MOV   [Counter], R0                 ; atualiza o counter
-    MOV   R1, DISPLAYS   
-    MOV   [R1], R0                      ; write on display
-    POP   R1
-    POP   R0
-    RET
-
-; **********************************************************************
-
 ; write_something - escreve uma figura com o endereco da sua tabela
 ; Argumentos:   R0 - Endereco da tabela da figura
 ;               
@@ -1022,54 +1028,6 @@ prox_lin2:
 end3:
     POP R7
     POP R6
-    POP R5
-    POP R4
-    POP R3
-    POP R2
-    POP R1
-    POP R0
-    RET
-
-; **********************************************************************
-
-; move_meteor - faz o meteoro descer uma linha (nao bate no rover)
-; Argumentos:   none (ja sabemos o endereco do meteoro)
-;
-; **********************************************************************
-;move_meteor:
-    PUSH R0
-    PUSH R1
-    PUSH R2
-    PUSH R3
-    PUSH R4
-    PUSH R5
-    MOV R0, [Meteor0 + 4]                ; linha
-    MOV R1, [Meteor0]                    ; altura
-    ADD R0, R1
-    SUB R0, 1
-    MOV R1, 31
-    MOV R2, [Rover]
-    SUB R1, R2
-    SUB R0, R1                          ; border check  (se linha + altura - 1 = 31(max) - altura do rover chegou ao final)
-    JZ reached_end
-normal:
-    MOV R0, Meteor0
-    CALL delete_something               ; apaga o meteoro
-
-    MOV R0, [Meteor0 + 4]
-    ADD R0, 1
-    MOV [Meteor0 + 4], R0                ; atualiza a linha do meteoro (aumenta por 1)
-    MOV R0, Meteor0
-    CALL write_something                ; escreve o meteoro
-    JMP end4
-
-reached_end:
-    MOV R0, Meteor0
-    CALL delete_something               ; apaga o meteoro quando chega ao fim 
-    MOV R0, 0
-    MOV [Meteor_exists], R0             ; desativa a flag do meteoro para ignorar tentativas de o mover quando nao existe
-
-end4:
     POP R5
     POP R4
     POP R3
