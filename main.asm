@@ -442,7 +442,11 @@ create_missile:
     ADD R2, 1
     MOV [Missile+2], R2
     MOV R3, COR_ROXO
+    MOV R0, 5
+    MOV [SELECIONA_ECRA], R0
     CALL escreve_pixel
+    MOV R0, 0
+    MOV [SELECIONA_ECRA],R0
 
 mov_missile:
     MOV R0, [missile_lock]              ;locks it 
@@ -459,6 +463,9 @@ mov_missile:
     MOV [Missile+4], R0                 ;updates movements left
 
 escreve_missile:
+    MOV R0, 5
+    MOV [SELECIONA_ECRA], R0
+
     MOV R1, [Missile]
     MOV R2, [Missile+2]
     MOV R3, 0H
@@ -470,15 +477,25 @@ escreve_missile:
     MOV R2, [Missile+2]
     MOV R3, COR_ROXO
     CALL escreve_pixel
+
+    MOV R0, 0
+    MOV [SELECIONA_ECRA],R0   
+
     JMP mov_missile
 
 delete_missile:
+    MOV R0, 5
+    MOV [SELECIONA_ECRA], R0
+    
 	MOV R1, 0
     MOV [Missile+6], R1
     MOV R1, [Missile]
     MOV R2, [Missile+2]
     MOV R3, 0H
     CALL escreve_pixel
+
+	MOV R0, 0
+    MOV [SELECIONA_ECRA],R0 
 
     MOV R0, [Missile+4]
     CMP R0, -1
@@ -487,6 +504,9 @@ delete_missile:
     JMP create_missile
 
 explode_missile:
+    MOV R0, 5
+    MOV [SELECIONA_ECRA], R0
+
 	MOV R0, [Missile]
 	SUB R0, 2
 	MOV [Explosion+4], R0
@@ -503,6 +523,10 @@ explode_cycle:
 	JNZ explode_cycle
 	MOV R0, Explosion
 	CALL delete_something
+
+	MOV R0, 0
+    MOV [SELECIONA_ECRA],R0
+
 	JMP create_missile
 
 ; -----------------------------------------------------------------
