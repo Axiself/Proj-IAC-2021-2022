@@ -258,12 +258,15 @@ MOV R0, DISPLAYS
 MOV  R1, 0
 MOV [R0], R1                            ; reset display
 
+MOV R3, 0
+MOV [SELECIONA_ECRA], R3
+
 MOV R0, Rover 
 CALL write_something                    ; inicializa o rover
 
 CALL P_teclado							; inicializa processo que gere o teclado
 CALL P_rover							; inicializa processo do movimento do rover
-CALL create_missile
+CALL P_missil
 CALL P_energia
 CALL P_gamemode
 
@@ -273,7 +276,6 @@ gera_meteoros:							; Cria as quatro instâncias do processo dos meteoros
 	SUB R1, 1
 	JNN gera_meteoros
 
-DI
 waiting:
 	WAIT
 	JMP waiting							; ciclo temporario para testar processos
@@ -327,6 +329,7 @@ P_rover:
 	MOV R3, COLUNA_MAX_ECRA				; coluna de pixeis do limite direio do ecrã
 	ADD R3, 1
 	SUB R3, R4		 					; posição maxima que o rover pode ocupar tendo em conta a sua largura
+	MOV R6, 0							; Ecrã onde está o rover
 
 check_move_direction:
 	MOV R5, [tecla_continua]
@@ -350,6 +353,9 @@ move_rover:
 	JN check_move_direction				; se passa do limite esquerdo, não é executado movimento
 	CMP R2, R3
 	JGT check_move_direction			; se passa do limite direito, não é executado movimento
+
+	MOV [SELECIONA_ECRA], R6
+
 	CALL delete_something
 	MOV [R0 + 6], R2					; altera posição do rover para se desencadear o movimento
 	CALL write_something
@@ -414,6 +420,8 @@ energy_cap:
 
 PROCESS SP_inicial_missil
 
+P_missil:
+    MOV R5, 5							; Ecrã onde se vai colocar o míssil
 create_missile:
     MOV R0, [tecla_pressionada]         ;lock
 
@@ -442,11 +450,8 @@ create_missile:
     ADD R2, 1
     MOV [Missile+2], R2
     MOV R3, COR_ROXO
-    MOV R0, 5
-    MOV [SELECIONA_ECRA], R0
+    MOV [SELECIONA_ECRA], R5
     CALL escreve_pixel
-    MOV R0, 0
-    MOV [SELECIONA_ECRA],R0
 
 mov_missile:
     MOV R0, [missile_lock]              ;locks it 
@@ -463,8 +468,7 @@ mov_missile:
     MOV [Missile+4], R0                 ;updates movements left
 
 escreve_missile:
-    MOV R0, 5
-    MOV [SELECIONA_ECRA], R0
+    MOV [SELECIONA_ECRA], R5
 
     MOV R1, [Missile]
     MOV R2, [Missile+2]
@@ -478,14 +482,10 @@ escreve_missile:
     MOV R3, COR_ROXO
     CALL escreve_pixel
 
-    MOV R0, 0
-    MOV [SELECIONA_ECRA],R0   
-
     JMP mov_missile
 
 delete_missile:
-    MOV R0, 5
-    MOV [SELECIONA_ECRA], R0
+    MOV [SELECIONA_ECRA], R5
     
 	MOV R1, 0
     MOV [Missile+6], R1
@@ -494,9 +494,6 @@ delete_missile:
     MOV R3, 0H
     CALL escreve_pixel
 
-	MOV R0, 0
-    MOV [SELECIONA_ECRA],R0 
-
     MOV R0, [Missile+4]
     CMP R0, -1
     JZ explode_missile
@@ -504,8 +501,7 @@ delete_missile:
     JMP create_missile
 
 explode_missile:
-    MOV R0, 5
-    MOV [SELECIONA_ECRA], R0
+    MOV [SELECIONA_ECRA], R5
 
 	MOV R0, [Missile]
 	SUB R0, 2
@@ -522,10 +518,7 @@ explode_cycle:
 	SUB R0, 1
 	JNZ explode_cycle
 	MOV R0, Explosion
-	CALL delete_something
-
-	MOV R0, 0
-    MOV [SELECIONA_ECRA],R0
+    MOV [APAGA_ECRA], R5
 
 	JMP create_missile
 
@@ -600,8 +593,6 @@ draw_meteor:
 	MOV [SELECIONA_ECRA], R10			; Seleciona o ecrã em que vai movido o meteoro
 	CALL write_something				; Desenha o meteoro
 
-	MOV R11, 0
-	MOV [SELECIONA_ECRA], R11 			; Repõe ecrã
 	JMP meteor_loop
 
 PROCESS SP_inicial_gamemode
