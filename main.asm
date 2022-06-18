@@ -17,9 +17,18 @@
 ; Controlos:
 ;   0 move para a esquerda 
 ;   2 move para a direita
-;   4 diminui o display
-;   7 aumenta o display
-;   8 move o meteoro
+;   7 dispara o missil
+;   C comeca o jogo
+;   D para o jogo
+;   E termina o jogo
+
+; Ecras:
+; 0 - normal
+; 1 - start
+; 2 - paused
+; 3 - exploded
+; 4 - energy 
+
 
 
 ; | ------------------------------------------------------------------ |
@@ -44,6 +53,8 @@ APAGA_AVISO             EQU 6040H       ; endereço do comando para apagar o avi
 APAGA_ECRAS				EQU 6002H		; endereço do comando para apagar todos os pixels já desenhados
 APAGA_ECRA              EQU 6000H       ; endereço do comando para apagar todos os pixeis de um certo ecrã
 SELECIONA_CENARIO_FUNDO EQU 6042H       ; endereço do comando para selecionar uma imagem de fundo
+SELECIONA_OVERLAY       EQU 6046H
+APAGA_OVERLAY           EQU 6044H
 SELECIONA_MEDIA         EQU 6048H
 PLAY_MEDIA              EQU 605AH
 COLUNA_MAX_ECRA 		EQU 63
@@ -69,8 +80,8 @@ TEC_ROV_ESQ 			EQU 0000H
 TEC_ROV_DIR 			EQU 0002H
 TECLA_MISSIL			EQU 0007H
 TECLA_PAUSA				EQU 000DH
-TECLA_TERMINAR			EQU 000CH
-TECLA_COMECAR			EQU 000EH
+TECLA_TERMINAR			EQU 000EH
+TECLA_COMECAR			EQU 000CH
 
 RESET_METEOROS			EQU 0002H		; Valor que desencadeio um reset dos meteoros
 RESET_MISSIL			EQU 0007H		; Valor que desencadeia um reset do míssil
@@ -237,7 +248,7 @@ MOV [R0], R0								; Limpa display
 
 MOV  [APAGA_AVISO], R1                  ; apaga o aviso de nenhum cenário selecionado (o valor de R1 não é relevante)
 MOV  [APAGA_ECRAS], R1                  ; apaga todos os pixels já desenhados (o valor de R1 não é relevante)
-MOV  R0, 0                              ; cenário de fundo número 0
+MOV  R0, 1                              ; cenário de fundo número 1
 MOV  [SELECIONA_CENARIO_FUNDO], R0      ; seleciona o cenário de fundo
 
 CALL P_teclado							; inicializa processo que gere o teclado
@@ -396,6 +407,8 @@ energy_cap:
 	JMP convert_energy              
 
 no_energy:
+	MOV R0, 4                              ; cenário de fundo morte por energia
+	MOV [SELECIONA_CENARIO_FUNDO], R0
 	MOV R5, TECLA_TERMINAR
 	MOV [tecla_pressionada], R5         ;verifica se passa do minimo 
 	MOV R0, DISPLAYS   			
@@ -582,8 +595,12 @@ gamemode_loop:
 	JZ pause
 	MOV R1, 0
 	MOV [jogo_suspendido], R1			; Continua a jogo
+	MOV [APAGA_OVERLAY], R1
 	JMP gamemode_loop
 pause:
+	MOV R1, 2
+	MOV [SELECIONA_OVERLAY], R1
+pause2:
 	MOV R1, 1
 	MOV [jogo_suspendido], R1			; Suspende o jogo
 	JMP gamemode_loop
@@ -601,7 +618,7 @@ game_over:
 	MOV R1, 0
 	MOV [APAGA_ECRAS], R1				; Apaga todos os ecrãs
 	CALL reset_program					; Repõe valores inciais e prepara o jogo para reiniciar
-	JMP pause
+	JMP pause2
 
 start_game:
 	MOV R2, TECLA_COMECAR
@@ -613,6 +630,11 @@ start_game:
 
 	MOV R11, 1							; Define jogo como tendo começado
 
+	MOV  R0, 0                          ; cenário de fundo normal
+	MOV  [SELECIONA_CENARIO_FUNDO], R0
+
+	MOV [APAGA_OVERLAY], R0
+
 	MOV R0, Rover
 	MOV R1, 0
 	MOV [SELECIONA_ECRA], R1
@@ -620,6 +642,8 @@ start_game:
 	MOV R0, DISPLAYS   			
 	MOV R5, 100H
     MOV [R0], R5                        ; Escreve 100 no display
+    MOV R5, 64H
+    MOV [Energy_counter], R5
 	MOV R1, 0
 	MOV [jogo_suspendido], R1			; Continua a jogo
 	JMP gamemode_loop
@@ -743,6 +767,9 @@ check_rover_colision:
 	MOV [energy_lock], R5				; Colisão de metoro bom com rover dá direito a 10% de energia
 	JMP colided
 rover_dies:
+	MOV  R0, 3                              ; cenário de fundo morte por colisao
+	MOV  [SELECIONA_CENARIO_FUNDO], R0
+
 	MOV R0, TECLA_TERMINAR
 	MOV [tecla_pressionada], R0			; Termina jogo
 
