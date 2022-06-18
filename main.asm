@@ -62,11 +62,11 @@ APAGA_AVISO             EQU 6040H       ; endereço do comando para apagar o avi
 APAGA_ECRAS				EQU 6002H		; endereço do comando para apagar todos os pixels já desenhados
 APAGA_ECRA              EQU 6000H       ; endereço do comando para apagar todos os pixeis de um certo ecrã
 SELECIONA_CENARIO_FUNDO EQU 6042H       ; endereço do comando para selecionar uma imagem de fundo
-SELECIONA_OVERLAY       EQU 6046H
-APAGA_OVERLAY           EQU 6044H
+SELECIONA_OVERLAY       EQU 6046H		; Escolhe um cenário frontal
+APAGA_OVERLAY           EQU 6044H		; Apaga cenário frontal
 PLAY_MEDIA              EQU 605AH
-COLUNA_MAX_ECRA 		EQU 63
-LINHA_MAX_ECRA 			EQU 31
+COLUNA_MAX_ECRA 		EQU 63			; Número da última coluna do ecrã
+LINHA_MAX_ECRA 			EQU 31			; Número da última linha do ecrã
 
 ; FIGURAS 
 
@@ -259,10 +259,11 @@ EI
 MOV R0, DISPLAYS
 MOV [R0], R0							; Limpa display
 
-MOV  [APAGA_AVISO], R1                  ; apaga o aviso de nenhum cenário selecionado (o valor de R1 não é relevante)
-MOV  [APAGA_ECRAS], R1                  ; apaga todos os pixels já desenhados (o valor de R1 não é relevante)
-MOV  R0, 1                              ; cenário de fundo número 1
-MOV  [SELECIONA_CENARIO_FUNDO], R0      ; seleciona o cenário de fundo
+MOV [APAGA_AVISO], R1                   ; apaga o aviso de nenhum cenário selecionado (o valor de R1 não é relevante)
+MOV [APAGA_ECRAS], R1                   ; apaga todos os pixels já desenhados (o valor de R1 não é relevante)
+MOV [APAGA_OVERLAY], R1					; Apaga o cenário frontal caso este exista
+MOV R0, 1                               ; cenário de fundo número 1
+MOV [SELECIONA_CENARIO_FUNDO], R0       ; seleciona o cenário de fundo
 
 CALL P_teclado							; inicializa processo que gere o teclado
 CALL P_rover							; inicializa processo do movimento do rover
@@ -719,19 +720,22 @@ game_over:
 
 	MOV R11, 0							; Define jogo como terminado
 
-	MOV R1, [auto_terminado]
+	MOV [APAGA_OVERLAY], R1				; Apaga o cenário frontal caso este exista
+
+	MOV R1, [auto_terminado]			; Verifica se o jogador perdeu
 	CMP R1, 0
 	JZ death
 	MOV R1, 3
 	MOV [PLAY_MEDIA], R1
-	MOV R1, 1                            ; cenário de fundo número 1
+	MOV R1, 1                           ; cenário de fundo número 1
 	MOV [SELECIONA_CENARIO_FUNDO], R1
-	MOV [auto_terminado], R1
 
 death:
 	MOV R1, 0
 	MOV [APAGA_ECRAS], R1				; Apaga todos os ecrãs
 	CALL reset_program					; Repõe valores inciais e prepara o jogo para reiniciar
+	MOV R1, 1
+	MOV [auto_terminado], R1
 	JMP pause2
 
 start_game:
