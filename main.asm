@@ -293,7 +293,7 @@ P_teclado:
 
 espera_tecla:
 
-	YIELD								; ponto de fuga pois este ciclo pode ser bloqueante
+	WAIT								; ponto de fuga pois este ciclo pode ser bloqueante
 	MOV  R1, 8	 						; primeira linha a testar é a linha 4
 verifica_linhas:                        ; neste ciclo espera-se até uma tecla ser premida
 	MOVB [R2], R1						; escrever no periférico de saída (linhas)
@@ -309,7 +309,7 @@ converte:
 
 ha_tecla:
 
-	YIELD								; ponto de fuga pois este ciclo pode ser bloqueante
+	WAIT								; ponto de fuga pois este ciclo pode ser bloqueante
 	MOV  R1, 8	 			            ; primeira linha a testar é a linha 4 
 	MOV [tecla_continua], R6			; desbloqueia processos que dependem de teclas premidas continuamente
 verifica_linhas2:
@@ -370,8 +370,8 @@ move_rover:
 PROCESS SP_inicial_energia
 
 P_energia:
-	MOV R0, [Energy_counter]            ;contador
 	MOV R1, [energy_lock]               ;valor a adicionar
+	MOV R0, [Energy_counter]            ;contador
 
 	MOV R8, [jogo_suspendido]
 	CMP R8, 1
@@ -682,8 +682,6 @@ start_game:
 	MOV R0, DISPLAYS   			
 	MOV R5, 100H
     MOV [R0], R5                        ; Escreve 100 no display
-    MOV R5, 64H
-    MOV [Energy_counter], R5
 	MOV R1, 0
 	MOV [jogo_suspendido], R1			; Continua a jogo
 	JMP gamemode_loop
