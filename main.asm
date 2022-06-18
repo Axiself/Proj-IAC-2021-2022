@@ -281,7 +281,7 @@ MOV [jogo_suspendido], R0				; Coloca o jogo em pausa, à espera da indicação 
 
 waiting:
 	WAIT
-	JMP waiting							; ciclo temporario para testar processos
+	JMP waiting							; Ciclo infinito que espera pela execução dos processos
 
 PROCESS SP_inicial_teclado
 
