@@ -610,11 +610,17 @@ gamemode_loop:
 	MOV R2, TECLA_PAUSA
 	CMP R0, R2
 	JNZ game_over
+
 	MOV R1, [jogo_suspendido]
 	CMP R1, 0							; Verifica se o jogo está ou não pausado
-	JZ pause
+	JZ pause							; Pausa o jogo caso este não esteja pausado
+
+	CMP R11, 0							; Verifica se o jogo já começou
+	JZ gamemode_loop					; Se o jogo ainda não começou, não o tira da pausa
+
 	MOV R1, 0
 	MOV [jogo_suspendido], R1			; Continua a jogo
+
 	MOV [APAGA_OVERLAY], R1
 	MOV R1, 2
 	MOV [PLAY_MEDIA], R1
