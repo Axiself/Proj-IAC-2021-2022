@@ -29,7 +29,16 @@
 ; 3 - exploded
 ; 4 - energy 
 
-
+; Sons: 
+; 0 - startup d
+; 1 - pause d
+; 2 - unpause d
+; 3 - termina
+; 4 - morte (colisao) 
+; 5 - morte (energia) 
+; 6 - energia recebida 
+; 7 - meteoro mau destruido 
+; 8 - missil 
 
 ; | ------------------------------------------------------------------ |
 ; | --------------------------- Constantes --------------------------- |
@@ -55,7 +64,6 @@ APAGA_ECRA              EQU 6000H       ; endereço do comando para apagar todos
 SELECIONA_CENARIO_FUNDO EQU 6042H       ; endereço do comando para selecionar uma imagem de fundo
 SELECIONA_OVERLAY       EQU 6046H
 APAGA_OVERLAY           EQU 6044H
-SELECIONA_MEDIA         EQU 6048H
 PLAY_MEDIA              EQU 605AH
 COLUNA_MAX_ECRA 		EQU 63
 LINHA_MAX_ECRA 			EQU 31
@@ -93,6 +101,9 @@ PLACE 2000H
 
 jogo_suspendido:
 	WORD 0
+
+auto_terminado:
+	WORD 1
 
 ; Reserva de espaço para as pilhas
 STACK 100H                              ; espaço reservado para a pilha 
@@ -250,6 +261,8 @@ MOV  [APAGA_AVISO], R1                  ; apaga o aviso de nenhum cenário selec
 MOV  [APAGA_ECRAS], R1                  ; apaga todos os pixels já desenhados (o valor de R1 não é relevante)
 MOV  R0, 1                              ; cenário de fundo número 1
 MOV  [SELECIONA_CENARIO_FUNDO], R0      ; seleciona o cenário de fundo
+;MOV R0, 0
+;MOV [PLAY_MEDIA], R0
 
 CALL P_teclado							; inicializa processo que gere o teclado
 CALL P_rover							; inicializa processo do movimento do rover
@@ -409,8 +422,12 @@ energy_cap:
 no_energy:
 	MOV R0, 4                              ; cenário de fundo morte por energia
 	MOV [SELECIONA_CENARIO_FUNDO], R0
+	MOV R0, 5
+	MOV [PLAY_MEDIA], R0
 	MOV R5, TECLA_TERMINAR
 	MOV [tecla_pressionada], R5         ;verifica se passa do minimo 
+	MOV R0, 0
+	MOV [auto_terminado], R0
 	MOV R0, DISPLAYS   			
 	MOV R5, 0
     MOV [R0], R5                      	;escreve 000 no display
@@ -440,6 +457,9 @@ create_missile:
 
     MOV R1, -5
     MOV [energy_lock], R1               ;diminui a energia
+
+    MOV R1, 8
+    MOV [PLAY_MEDIA], R1
 
     MOV R1, LINHA
     SUB R1, 1
@@ -596,10 +616,14 @@ gamemode_loop:
 	MOV R1, 0
 	MOV [jogo_suspendido], R1			; Continua a jogo
 	MOV [APAGA_OVERLAY], R1
+	MOV R1, 2
+	MOV [PLAY_MEDIA], R1
 	JMP gamemode_loop
 pause:
 	MOV R1, 2
 	MOV [SELECIONA_OVERLAY], R1
+	MOV R1, 1
+	MOV [PLAY_MEDIA], R1
 pause2:
 	MOV R1, 1
 	MOV [jogo_suspendido], R1			; Suspende o jogo
@@ -615,6 +639,16 @@ game_over:
 
 	MOV R11, 0							; Define jogo como terminado
 
+	MOV R1, [auto_terminado]
+	CMP R1, 0
+	JZ death
+	MOV R1, 3
+	MOV [PLAY_MEDIA], R1
+	MOV R1, 1                              ; cenário de fundo número 1
+	MOV [SELECIONA_CENARIO_FUNDO], R1
+	MOV [auto_terminado], R1
+
+death:
 	MOV R1, 0
 	MOV [APAGA_ECRAS], R1				; Apaga todos os ecrãs
 	CALL reset_program					; Repõe valores inciais e prepara o jogo para reiniciar
@@ -632,7 +666,7 @@ start_game:
 
 	MOV  R0, 0                          ; cenário de fundo normal
 	MOV  [SELECIONA_CENARIO_FUNDO], R0
-
+	MOV [PLAY_MEDIA], R0
 	MOV [APAGA_OVERLAY], R0
 
 	MOV R0, Rover
@@ -742,6 +776,8 @@ colision_check:
 	JZ colided							; Destruição de meteoro bom não dá energia
 	MOV R5, 5
 	MOV [energy_lock], R5				; Destruição meteoro mau dá direito a 5% de energia
+	MOV R5, 7
+	MOV [PLAY_MEDIA], R5
 	JMP colided
 
 check_rover_colision:
@@ -765,13 +801,20 @@ check_rover_colision:
 	JNZ rover_dies						; Se o meteoro é mau, o jogo acaba
 	MOV R5, 10
 	MOV [energy_lock], R5				; Colisão de metoro bom com rover dá direito a 10% de energia
+	MOV R5, 6
+	MOV [PLAY_MEDIA], R5
 	JMP colided
 rover_dies:
-	MOV  R0, 3                              ; cenário de fundo morte por colisao
+	MOV  R0, 3                          ; cenário de fundo morte por colisao
 	MOV  [SELECIONA_CENARIO_FUNDO], R0
+	MOV R0, 4
+	MOV [PLAY_MEDIA], R0              
+
 
 	MOV R0, TECLA_TERMINAR
 	MOV [tecla_pressionada], R0			; Termina jogo
+	MOV R0, 0
+	MOV [auto_terminado], R0
 
 colided:
 	MOV R7, 1

@@ -721,7 +721,7 @@
     "simGuiXRelative" : 19,
     "simGuiYRelative" : 41,
     "simGuiWidth" : 798,
-    "simGuiHeight" : 886,
+    "simGuiHeight" : 901,
     "clockPeriod" : 200,
     "startAutomatically" : false,
     "simulationMaster" : true,
@@ -750,7 +750,7 @@
       "pinConnectionID" : -1,
       "pinValueFixed" : "1"
     },
-    "programFilePathName" : "Proj-IAC-2021-2022\\main.asm",
+    "programFilePathName" : "main.asm",
     "nTabSpaces" : 4,
     "bus interface" : {
       "className" : "ModuleExtensionMasterBusReadWrite",
@@ -1475,8 +1475,8 @@
     "positionX" : 1026,
     "positionY" : 464,
     "simGuiVisibleInSimulation" : true,
-    "simGuiXRelative" : 1192,
-    "simGuiYRelative" : 548,
+    "simGuiXRelative" : 1169,
+    "simGuiYRelative" : 570,
     "simGuiWidth" : 265,
     "simGuiHeight" : 212,
     "nHexaDigits" : 3,
@@ -1512,7 +1512,62 @@
     "windowScreenWidthPixels" : 1024,
     "windowScreenHeightixels" : 512,
     "defaultPenColor" : 51063,
-    "image paths" : [ "media files\\background normal.png", "media files\\start .png", "media files\\paused2.png", "media files\\exploded2.png", "media files\\energy.png" ],
+    "image paths" : [ "media\\bg\\background normal.png", "media\\bg\\start .png", "media\\bg\\paused2.png", "media\\bg\\exploded2.png", "media\\bg\\energy.png" ],
+    "sounds/videos settings" : [ {
+      "filePathName" : "media\\sounds\\startup.mp3",
+      "relative sound volume" : 1.0,
+      "relative start time" : 0.0,
+      "relative stop time" : 1.0,
+      "playAsClip" : false
+    }, {
+      "filePathName" : "media\\sounds\\pause.mp3",
+      "relative sound volume" : 1.0,
+      "relative start time" : 0.0,
+      "relative stop time" : 1.0,
+      "playAsClip" : false
+    }, {
+      "filePathName" : "media\\sounds\\unpaused.mp3",
+      "relative sound volume" : 1.0,
+      "relative start time" : 0.0,
+      "relative stop time" : 1.0,
+      "playAsClip" : false
+    }, {
+      "filePathName" : "media\\sounds\\termina.mp3",
+      "relative sound volume" : 1.0,
+      "relative start time" : 0.0,
+      "relative stop time" : 1.0,
+      "playAsClip" : false
+    }, {
+      "filePathName" : "media\\sounds\\death noise (colisao).mp3",
+      "relative sound volume" : 1.0,
+      "relative start time" : 0.0,
+      "relative stop time" : 1.0,
+      "playAsClip" : false
+    }, {
+      "filePathName" : "media\\sounds\\death noise (energia).mp3",
+      "relative sound volume" : 1.0,
+      "relative start time" : 0.0,
+      "relative stop time" : 1.0,
+      "playAsClip" : false
+    }, {
+      "filePathName" : "media\\sounds\\energy collected.mp3",
+      "relative sound volume" : 1.0,
+      "relative start time" : 0.0,
+      "relative stop time" : 1.0,
+      "playAsClip" : false
+    }, {
+      "filePathName" : "media\\sounds\\meteor destroyed.mp3",
+      "relative sound volume" : 1.0,
+      "relative start time" : 0.0,
+      "relative stop time" : 1.0,
+      "playAsClip" : false
+    }, {
+      "filePathName" : "media\\sounds\\missile.mp3",
+      "relative sound volume" : 1.0,
+      "relative start time" : 0.0,
+      "relative stop time" : 1.0,
+      "playAsClip" : false
+    } ],
     "addressable data" : {
       "className" : "ModuleExtensionMemoryMediaCenter",
       "elementID" : 83,
