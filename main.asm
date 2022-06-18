@@ -8,7 +8,7 @@
 ; Grupo 18:
 ; 	-> Rui Amaral: ist1103155
 ; 	-> Miguel Gomes: ist1103559
-; 	-> JP: ist1xxxxx
+; 	-> João Paulo: ist102081
 ;
 ; >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
@@ -54,7 +54,7 @@ MASCARA    EQU 0FH                      ; para isolar os 4 bits de menor peso, a
 
 ; ECRÃ
 
-SELECIONA_ECRA			EQU 6004H
+SELECIONA_ECRA			EQU 6004H		; Seleciona o ecrã para os próximos comandos
 DEFINE_LINHA            EQU 600AH       ; endereço do comando para definir a linha
 DEFINE_COLUNA           EQU 600CH       ; endereço do comando para definir a coluna
 DEFINE_PIXEL            EQU 6012H       ; endereço do comando para escrever um pixel
@@ -70,26 +70,26 @@ LINHA_MAX_ECRA 			EQU 31
 
 ; FIGURAS 
 
-COR_F        EQU 0F00FH
-COR_M        EQU 0FF00H
-COR_E        EQU 0F0F0H
-COR_CINZENTO EQU 0D888H
-COR_ROXO     EQU 0FF0FH
-COR_AZUL_CLARO EQU 0F0FFH
-ALTURA       EQU  3         
-LARGURA      EQU  3
-LINHA        EQU  29                    ; linha do boneco (a meio do ecrã)) (estatica)
-COLUNA       EQU  31                    ; coluna do boneco (a meio do ecrã) (inicial)
-MISSILE_RANGE EQU 12	
+COR_F        EQU 0F00FH					; Azul
+COR_M        EQU 0FF00H					; Vermelho
+COR_E        EQU 0F0F0H					; Verde
+COR_CINZENTO EQU 0D888H					; Cinzento
+COR_ROXO     EQU 0FF0FH					; Roxo
+COR_AZUL_CLARO EQU 0F0FFH				; Azul claro
+ALTURA       EQU  3         			; Altura do rover
+LARGURA      EQU  3						; Largura do rover
+LINHA        EQU  29                    ; linha do rover (a meio do ecrã)) (estatica)
+COLUNA       EQU  31                    ; coluna do rover (a meio do ecrã) (inicial)
+MISSILE_RANGE EQU 12					; Alcance do míssil (default = 12)
 
 ; TECLAS
 
-TEC_ROV_ESQ 			EQU 0000H
-TEC_ROV_DIR 			EQU 0002H
-TECLA_MISSIL			EQU 0007H
-TECLA_PAUSA				EQU 000DH
-TECLA_TERMINAR			EQU 000EH
-TECLA_COMECAR			EQU 000CH
+TEC_ROV_ESQ 			EQU 0000H		; Tecla que faz o rover andar para a esquerda
+TEC_ROV_DIR 			EQU 0002H		; Tecla que faz o rover andar para a direita
+TECLA_MISSIL			EQU 0007H		; Tecla que dispara míssil
+TECLA_PAUSA				EQU 000DH		; Tecla que põe/tira o jogo da pausa
+TECLA_TERMINAR			EQU 000EH		; Tecla que termina o jogo
+TECLA_COMECAR			EQU 000CH		; Tecla que começa o jogo
 
 RESET_METEOROS			EQU 0002H		; Valor que desencadeio um reset dos meteoros
 RESET_MISSIL			EQU 0007H		; Valor que desencadeia um reset do míssil
@@ -99,15 +99,15 @@ RESET_MISSIL			EQU 0007H		; Valor que desencadeia um reset do míssil
 
 PLACE 2000H
 
-jogo_suspendido:
+jogo_suspendido:						; Define de o jogo está suspendido (1) ou não (0)
 	WORD 0
 
-auto_terminado:
-	WORD 1
+auto_terminado:							; Identifica se o jogo acabou de forma controlado ou se
+	WORD 1								; o jogador perdeu
 
 ; Reserva de espaço para as pilhas
-STACK 100H                              ; espaço reservado para a pilha 
-SP_inicial_principal:                   ; endereco do SP
+STACK 100H
+SP_inicial_principal:                   ; Pilha principal
 
 STACK 100H
 SP_inicial_teclado:
@@ -135,25 +135,25 @@ SP_inicial_meteoro2:
 STACK 100H
 SP_inicial_meteoro3:
 
-Energy_counter:
+Energy_counter:							; Energia atual do programa
 	WORD 64H                            ;(100)
-tecla_pressionada:
+tecla_pressionada:						; Lock para teclas premidas uma vez
 	LOCK 0
-tecla_continua:
+tecla_continua:							; Lock para teclas premidas de forma continua
 	LOCK 0
-meteor_lock:
+meteor_lock:							; Lock para do P_meteors
     LOCK 0
-missile_lock:                           ;0- doesnt exist, 1-exists, 2-exists and will move 
+missile_lock:                           ; Lock para o P_missil
     LOCK 0
-energy_lock: 
+energy_lock: 							; Lock para o P_energia
     LOCK 0
 
-Interrupcoes:
+Interrupcoes:							; Tabela de interrupções
 	WORD int_meteor
     WORD int_missile
     WORD int_energy
 
-meteor_SP_tab:
+meteor_SP_tab:							; Tabela com SPs iniciais para as instâncias do P_meteors
 	WORD SP_inicial_meteoro0
 	WORD SP_inicial_meteoro1
 	WORD SP_inicial_meteoro2
@@ -162,7 +162,7 @@ meteor_SP_tab:
 
 ; Figuras
 Rover: WORD ALTURA, LARGURA, LINHA, COLUNA, R_tab
-; Altura, Largura, Linha, Coluna, Endereço do sprite, Tipo de meteoro (1 = bom; 0 = mau)
+; Altura, Largura, Linha, Coluna, Endereço da tabela de sprites, Tipo de meteoro (1 = bom; 0 = mau)
 Meteor0:  WORD 1, 1, 0, 0, 0, 0
 Meteor1:  WORD 1, 1, 0, 0, 0, 0
 Meteor2:  WORD 1, 1, 0, 0, 0, 0
@@ -172,6 +172,7 @@ Missile: WORD 0, 0     					; Linha, Coluna
          WORD MISSILE_RANGE       		; movimentos restantes (ate desaparecer)
          WORD 0        					; 0- doesnt exist, 1- exists, -1- exploded
 
+; Altura, Largura, Linha, Coluna, Endereço da tabela de sprites
 Explosion: WORD 5, 5, 0, 0, Ex_tab
 
 ; Sprites
@@ -180,6 +181,7 @@ R_sprite: WORD COR_F, 0, COR_F
         WORD COR_F, 0, COR_F
 R_tab:
 	WORD R_sprite
+
 ; Meteoros maus
 Mm_tab:
 	WORD Mm_sprite0
@@ -228,7 +230,7 @@ Mb_sprite4: WORD 0, COR_E,  COR_E,  COR_E, COR_E
 		WORD COR_E, COR_E, COR_E, COR_E, COR_E
 		WORD 0, COR_E, 0, 0, COR_E
 
-; Explosao
+; Explosão
 
 Ex_tab: WORD Ex_sprite
 
@@ -255,14 +257,12 @@ EI2
 EI
 
 MOV R0, DISPLAYS
-MOV [R0], R0								; Limpa display
+MOV [R0], R0							; Limpa display
 
 MOV  [APAGA_AVISO], R1                  ; apaga o aviso de nenhum cenário selecionado (o valor de R1 não é relevante)
 MOV  [APAGA_ECRAS], R1                  ; apaga todos os pixels já desenhados (o valor de R1 não é relevante)
 MOV  R0, 1                              ; cenário de fundo número 1
 MOV  [SELECIONA_CENARIO_FUNDO], R0      ; seleciona o cenário de fundo
-;MOV R0, 0
-;MOV [PLAY_MEDIA], R0
 
 CALL P_teclado							; inicializa processo que gere o teclado
 CALL P_rover							; inicializa processo do movimento do rover
@@ -283,13 +283,29 @@ waiting:
 	WAIT
 	JMP waiting							; Ciclo infinito que espera pela execução dos processos
 
+; | ------------------------------------------------------------------ |
+; | --------------------------- Processos ---------------------------- |
+; | ------------------------------------------------------------------ |
+
+; **********************************************************************
+;
+; PROCESSO
+;
+; P_rover - Processo que dá o movimento ao rover segundo os inputs
+;	recebidos do P_teclado. Move o rover enquanto uma das teclas que
+;	controlam o seu movimento esteja a ser premida.
+;	
+; Argumentos:	N/A
+;
+; **********************************************************************
+
 PROCESS SP_inicial_teclado
 
 P_teclado:
 
-	MOV  R2, TEC_LIN		; endereço do periférico das linhas
-	MOV  R3, TEC_COL		; endereço do periférico das colunas
-	MOV  R5, MASCARA		; para isolar os 4 bits de menor peso, ao ler as colunas do teclado
+	MOV  R2, TEC_LIN					; endereço do periférico das linhas
+	MOV  R3, TEC_COL					; endereço do periférico das colunas
+	MOV  R5, MASCARA					; para isolar os 4 bits de menor peso, ao ler as colunas do teclado
 
 espera_tecla:
 
@@ -321,7 +337,17 @@ verifica_linhas2:
 	JZ espera_tecla						; quando não houver tecla a ser premida volta ao espera_tecla
 	JMP verifica_linhas2				; repete para a prox linha
 
-; ----------------------------------
+; **********************************************************************
+;
+; PROCESSO
+;
+; P_rover - Processo que dá o movimento ao rover segundo os inputs
+;	recebidos do P_teclado. Move o rover enquanto uma das teclas que
+;	controlam o seu movimento esteja a ser premida.
+;	
+; Argumentos:	N/A
+;
+; **********************************************************************
 
 PROCESS SP_inicial_rover
 
@@ -365,7 +391,18 @@ move_rover:
 	CALL atraso
 	JMP check_move_direction			; este processo nunca termina
 
-; -----------------------------------------------------------------
+; **********************************************************************
+;
+; PROCESSO
+;
+; P_energia - Processo responsável pela gestão da energia no programa.
+;	Encarregue de atualizar o display da energia consoante recebe
+;	sinais dos outros processos e da interrução que implicam
+;	uma variação da energia. Deteta quando o rover fica sem energia.
+;	
+; Argumentos:	N/A
+;
+; **********************************************************************
 
 PROCESS SP_inicial_energia
 
@@ -420,7 +457,7 @@ energy_cap:
 	JMP convert_energy              
 
 no_energy:
-	MOV R0, 4                              ; cenário de fundo morte por energia
+	MOV R0, 4                           ; cenário de fundo morte por energia
 	MOV [SELECIONA_CENARIO_FUNDO], R0
 	MOV R0, 5
 	MOV [PLAY_MEDIA], R0
@@ -433,7 +470,18 @@ no_energy:
     MOV [R0], R5                      	;escreve 000 no display
 	JMP P_energia
  
-; -----------------------------------------------------------------
+; **********************************************************************
+;
+; PROCESSO
+;
+; P_missil - Processo responsável pelo funcionamento do míssil.
+;	Cria o míssil quando a tecla respetiva é premida e coloca-o em
+;	em movimento controlado pela interrupção do míssil. Também gera a
+;	explosão do míssil quando recebe o sinal do processo P_meteors.
+;	
+; Argumentos:	N/A
+;
+; **********************************************************************
 
 PROCESS SP_inicial_missil
 
@@ -528,7 +576,17 @@ explode_missile:
 
 ; -----------------------------------------------------------------
 
+; **********************************************************************
+;
+; PROCESSO
+;
+; P_meteors - Processo que trata de tudo que envolve os meteoros do jogo.
+;	Tem uma instância para cada meteoro em jogo. Responsável pelo
+;	movimento dos meteoros e pelas sua colisões.
+;	
 ; Argumentos: R1 - Número da instância do processo.
+;
+; **********************************************************************
 
 PROCESS SP_inicial_meteoro0
 
@@ -601,6 +659,22 @@ draw_meteor:
 
 	JMP meteor_loop
 
+
+; **********************************************************************
+;
+; PROCESSO
+;
+; P_gamemode - Processo que trata dos diferentes modos de comportamento
+;	do programa. Pausa e despausa o programa quando recebe inputs do
+;	processo do teclado, termina o jogo quando o jogador perde ou
+;	carrega na tecla definida e começa o jogo quando a tecla de começo
+;	é pressionada.
+;	
+; Argumentos:	N/A
+;
+; **********************************************************************
+
+
 PROCESS SP_inicial_gamemode
 
 P_gamemode:
@@ -650,7 +724,7 @@ game_over:
 	JZ death
 	MOV R1, 3
 	MOV [PLAY_MEDIA], R1
-	MOV R1, 1                              ; cenário de fundo número 1
+	MOV R1, 1                            ; cenário de fundo número 1
 	MOV [SELECIONA_CENARIO_FUNDO], R1
 	MOV [auto_terminado], R1
 
@@ -663,7 +737,7 @@ death:
 start_game:
 	MOV R2, TECLA_COMECAR
 	CMP R0, R2
-	JNZ gamemode_loop						; Ignora outros valores
+	JNZ gamemode_loop					; Ignora outros valores
 	
 	CMP R11, 1							; Verifica se o jogo já começou
 	JZ gamemode_loop					; Se o jogo já tiver começado, não faz nada
@@ -692,9 +766,8 @@ start_game:
 
 ; **********************************************************************
 ;
-; reset_program - Da reset aos word de estado / posicao do programa
+; reset_program - Prepara o programa para ser reiniciado.
 ;	
-;	WIP
 ; Argumentos:	N/A
 ;
 ; **********************************************************************
@@ -703,21 +776,21 @@ reset_program:
 	PUSH R0
 
 	MOV R0, 64H							; = 100
-	MOV [Energy_counter], R0
+	MOV [Energy_counter], R0			; Coloca energia a 100
 
 	MOV R0, 0
 
-	MOV [Missile], R0
+	MOV [Missile], R0					; Reseta míssil
 	MOV [Missile + 2], R0
 	MOV [Missile + 6], R0
 	MOV R0, RESET_MISSIL
-	MOV [missile_lock], R0
+	MOV [missile_lock], R0				; Diz ao P_missil para reiniciar
 
 	MOV R0, RESET_METEOROS
-	MOV [meteor_lock], R0
+	MOV [meteor_lock], R0				; Diz ao P_meteors para reiniciar
 
 	MOV R0, COLUNA
-	MOV [Rover + 6], R0
+	MOV [Rover + 6], R0					; Repõe coluna do rover
 
 	POP R0
 	RET
@@ -961,9 +1034,10 @@ converte_linha:
 
 
 ; **********************************************************************
-
-; atraso - decrementa num ciclo para atrasar whatever
-; Argumentos:  None
+;
+; atraso - Produz um atraso no programa.
+;
+; Argumentos:  N/A
 ;
 ; **********************************************************************
 
@@ -974,18 +1048,20 @@ atraso:
     MOV     R11,  4000H
 ciclo_atraso:
     SUB R11, 1
-    JNZ ciclo_atraso
+    JNZ ciclo_atraso					; Ciclo que subtrai 1 aa um valor até 0 para gastar tempo do processador
 
     POP R11
     RET
 
 
 ; **********************************************************************
-
+;
 ; write_something - escreve uma figura com o endereco da sua tabela
+;
 ; Argumentos:   R0 - Endereco da tabela da figura
 ;               
 ; **********************************************************************
+
 write_something:
     PUSH R0
     PUSH R1
@@ -1030,8 +1106,9 @@ end3:
     RET
 
 ; **********************************************************************
-
-; delete_something- apaga uma figura de um ecrã
+;
+; delete_something - Apaga uma figura de um ecrã.
+;
 ; Argumentos: R0 - Tabela que define a figura que se pretende apagar
 ;
 ; **********************************************************************
@@ -1071,7 +1148,9 @@ end2:
     RET
     
 ; **********************************************************************
-; ESCREVE_PIXEL - Escreve um pixel na linha e coluna indicadas.
+;
+; escreve_pixel - Escreve um pixel na linha e coluna indicadas.
+;
 ; Argumentos:   R1 - linha
 ;               R2 - coluna
 ;               R3 - cor do pixel (em formato ARGB de 16 bits)
@@ -1088,23 +1167,23 @@ escreve_pixel:
 ; | ------------------------------------------------------------------ |
 
 
-int_missile:
+int_missile:							; Rotina da interrupção do míssil
     PUSH R0
     MOV R0, 0
-    MOV [missile_lock], R0      ;unlocks process
+    MOV [missile_lock], R0      		; Desbloqueia P_missil
     POP R0
     RFE
     
-int_meteor:
+int_meteor:								; Rotina da interrupção dos meteoros
     PUSH R0
     MOV R0, 1
-    MOV [meteor_lock], R0
+    MOV [meteor_lock], R0      			; Desbloqueia P_meteors
     POP R0
     RFE
 
-int_energy:
+int_energy:								; Rotina da interrupção da energia
     PUSH R0
     MOV R0, -5
-    MOV [energy_lock], R0
+    MOV [energy_lock], R0      			; Desbloqueia P_energia
     POP R0
     RFE
